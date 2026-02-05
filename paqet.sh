@@ -1501,7 +1501,12 @@ edit_config() {
                 echo -ne "Enter new Parity Shards (e.g. 1, 3, 5): "
                 read -r new_val
                 if [[ "$new_val" =~ ^[0-9]+$ ]]; then
-                    sed -i "s/parity_shard: .*/parity_shard: $new_val/" "$CONFIG_FILE"
+                    # Robust replacement: handle both key styles
+                    if grep -q "parity_shard:" "$CONFIG_FILE"; then
+                        sed -i "s/parity_shard: .*/parity_shard: $new_val/" "$CONFIG_FILE"
+                    else
+                        sed -i "s/parityshard: .*/parityshard: $new_val/" "$CONFIG_FILE"
+                    fi
                     echo -e "${GREEN}✓ Updated Parity${NC}"
                 fi
                 ;;
