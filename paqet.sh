@@ -243,7 +243,7 @@ transport:
   conn: 16
   kcp:
     mode: "fast3"
-    mtu: 1350
+    mtu: 1280
     rcvwnd: 16384
     sndwnd: 16384
     datashard: 20
@@ -481,7 +481,7 @@ transport:
   conn: 16
   kcp:
     mode: "fast3"
-    mtu: 1350
+    mtu: 1280
     rcvwnd: 16384
     sndwnd: 16384
     datashard: 20
