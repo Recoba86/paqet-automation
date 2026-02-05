@@ -447,11 +447,13 @@ install_client() {
         # Build Forward Rules Array
         mapfile -t PORT_LIST < <(echo "$input_ports" | tr ',' '\n')
         for port in "${PORT_LIST[@]}"; do
-            port=$(echo "$port" | tr -d '[:space:]')
-            if [[ -z "$port" ]] || ! [[ "$port" =~ ^[0-9]+$ ]]; then continue; fi
+            # Strict cleanup: keep ONLY digits
+            port=$(echo "$port" | tr -cd '0-9')
+            if [ -z "$port" ]; then continue; fi
             
-            FORWARD_RULES+=("  - listen: \"0.0.0.0:${port}\"")
-            FORWARD_RULES+=("    remote: \"127.0.0.1:${port}\"")
+            # Use unquoted values to be safe
+            FORWARD_RULES+=("  - listen: 0.0.0.0:${port}")
+            FORWARD_RULES+=("    remote: 127.0.0.1:${port}")
             setup_firewall_port "$port" &>/dev/null
         done
     fi
