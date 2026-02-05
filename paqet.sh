@@ -191,7 +191,7 @@ install_server() {
     # Pre-seed iptables-persistent to avoid prompts
     echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
     echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev bc chrony &>/dev/null
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev bc chrony lsof &>/dev/null
     
     # Force Time Sync (Critical for KCP)
     systemctl enable --now chrony &>/dev/null
@@ -316,14 +316,24 @@ EOF
     
     # Configure Firewall (Force Open UDP 443)
     echo -e "${YELLOW}Configuring firewall...${NC}"
+    
+    # Remove existing rules first to prevent duplication
+    iptables -D INPUT -p udp --dport 443 -j ACCEPT 2>/dev/null || true
+    iptables -t raw -D PREROUTING -p udp --dport 443 -j NOTRACK 2>/dev/null || true
+    iptables -t raw -D OUTPUT -p udp --sport 443 -j NOTRACK 2>/dev/null || true
+    iptables -t mangle -D POSTROUTING -p tcp --tcp-flags RST RST -j DROP 2>/dev/null || true
+
+    # UFW support
     if command -v ufw &> /dev/null; then
         ufw allow 443/udp &>/dev/null || true
     fi
-    iptables -I INPUT -p udp --dport 443 -j ACCEPT
     
+    # Add rules
+    iptables -I INPUT -p udp --dport 443 -j ACCEPT
     iptables -t raw -A PREROUTING -p udp --dport 443 -j NOTRACK
     iptables -t raw -A OUTPUT -p udp --sport 443 -j NOTRACK
     iptables -t mangle -A POSTROUTING -p tcp --tcp-flags RST RST -j DROP
+    
     netfilter-persistent save &>/dev/null || iptables-save > /etc/iptables/rules.v4
     
     echo -e "${GREEN}✓ Optimizations applied${NC}"
@@ -497,7 +507,7 @@ install_client() {
     # Pre-seed iptables-persistent to avoid prompts
     echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
     echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev git build-essential bc chrony &>/dev/null
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev git build-essential bc chrony lsof &>/dev/null
     
     # Force Time Sync (Critical for KCP)
     systemctl enable --now chrony &>/dev/null
@@ -627,7 +637,30 @@ EOF
     iptables -t raw -A PREROUTING -p udp --dport 443 -j NOTRACK
     iptables -t raw -A OUTPUT -p udp --sport 443 -j NOTRACK
     iptables -t mangle -A POSTROUTING -p tcp --tcp-flags RST RST -j DROP
-    netfilter-persistent save &>/dev/null || iptables-save > /etc/iptables/rules.v4
+
+setup_firewall_port() {
+    local port=$1
+    if [ -n "$port" ]; then
+        # Remove existing rules first
+        iptables -t raw -D PREROUTING -p tcp --dport "$port" -j NOTRACK 2>/dev/null || true
+        iptables -t raw -D OUTPUT -p tcp --sport "$port" -j NOTRACK 2>/dev/null || true
+        iptables -t mangle -D POSTROUTING -p tcp --tcp-flags RST RST -j DROP 2>/dev/null || true
+
+        # Add new rules
+        iptables -t raw -A PREROUTING -p tcp --dport "$port" -j NOTRACK
+        iptables -t raw -A OUTPUT -p tcp --sport "$port" -j NOTRACK
+        iptables -t mangle -A POSTROUTING -p tcp --tcp-flags RST RST -j DROP
+        
+        # Also allow INPUT for that port just in case (like we did for server 443)
+        iptables -I INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null || true
+        
+        # UFW support
+        if command -v ufw &> /dev/null; then
+             ufw allow "$port"/tcp &>/dev/null || true
+        fi
+    fi
+}
+netfilter-persistent save &>/dev/null || iptables-save > /etc/iptables/rules.v4
     
     echo -e "${GREEN}✓ Optimizations applied${NC}"
     
