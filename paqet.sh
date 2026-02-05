@@ -1422,6 +1422,29 @@ uninstall_paqet() {
     rm -f /etc/systemd/system/paqet.service
     systemctl daemon-reload
     
+    # Clean up firewall rules (Port Forwarding)
+    if [ -f "/etc/paqet/config.yaml" ]; then
+        echo -e "${YELLOW}Cleaning up firewall rules...${NC}"
+        # Extract ports from forward section
+        # Logic: Look for "listen: 0.0.0.0:PORT" lines
+        FORWARD_PORTS=$(grep -oP 'listen: "0.0.0.0:\K\d+' /etc/paqet/config.yaml || true)
+        
+        for port in $FORWARD_PORTS; do
+            echo -e "  - Removing rule for port $port"
+            if command -v ufw &> /dev/null; then
+                ufw delete allow "$port"/tcp &>/dev/null || true
+            fi
+            if command -v iptables &> /dev/null; then
+                iptables -D INPUT -p tcp --dport "$port" -j ACCEPT &>/dev/null || true
+            fi
+        done
+        
+        # Save iptables changes
+        if command -v iptables-save &> /dev/null; then
+            iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
+        fi
+    fi
+    
     echo -e "${YELLOW}Removing files...${NC}"
     rm -f /usr/local/bin/paqet
     rm -rf /etc/paqet
