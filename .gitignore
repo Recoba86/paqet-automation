@@ -1,0 +1,44 @@
+# Paqet Tunnel Automation
+# Backup directory
+/root/paqet-backups/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Archives
+*.tar.gz
+*.zip
+
+# Build artifacts (from proxychains if saved locally)
+/tmp/proxychains-ng/
+
+# Config files (sensitive)
+# Note: Example configs should be committed
+config.json.backup
+*.secret
+
+# macOS
+.AppleDouble
+.LSOverride
+._*
+
+# Test files
+test_*
+*_test.sh
