@@ -444,16 +444,17 @@ install_client() {
         echo -e "Enter ports (comma-separated, e.g. 2096,8443): "
         read -r input_ports
         
-        # Build Forward Rules Array
-        mapfile -t PORT_LIST < <(echo "$input_ports" | tr ',' '\n')
+        # Safer Parsing (Compatible with old Bash)
+        IFS=',' read -ra PORT_LIST <<< "$input_ports"
+        
         for port in "${PORT_LIST[@]}"; do
             # Strict cleanup: keep ONLY digits
             port=$(echo "$port" | tr -cd '0-9')
             if [ -z "$port" ]; then continue; fi
             
-            # Use unquoted values to be safe
-            FORWARD_RULES+=("  - listen: 0.0.0.0:${port}")
-            FORWARD_RULES+=("    remote: 127.0.0.1:${port}")
+            # Standard Config Format (Quoted)
+            FORWARD_RULES+=("  - listen: \"0.0.0.0:${port}\"")
+            FORWARD_RULES+=("    remote: \"127.0.0.1:${port}\"")
             setup_firewall_port "$port" &>/dev/null
         done
     fi
@@ -468,6 +469,32 @@ install_client() {
     echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
     DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev git build-essential bc &>/dev/null
     echo -e "${GREEN}✓ Tools installed${NC}"
+    
+    # ... (skipping binary download logic) ...
+    
+    # Create config
+    LOCAL_IP=$(ip -4 addr show "$DEFAULT_IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+    
+    # Set globals for write_paqet_config
+    export ROLE="client"
+    export SERVER_ADDR="$SERVER_IP:443"
+    export KEY="$SECRET_KEY"
+    export IFACE="$DEFAULT_IFACE"
+    export LOCAL_IP="$LOCAL_IP":0
+    export ROUTER_MAC="$ROUTER_MAC"
+    export SOCKS_LISTEN="0.0.0.0:1080"
+    
+    write_paqet_config
+    
+    echo -e "${GREEN}✓ Configuration generated${NC}"
+    
+    # DEBUG: Show config content to user
+    echo -e "${YELLOW}--- DEBUG: GENERATED CONFIG ---${NC}"
+    cat /etc/paqet/config.yaml
+    echo -e "${YELLOW}-------------------------------${NC}"
+    
+    # Create service
+    chmod 644 /etc/paqet/config.yaml
     
     # Fetch latest release
     echo -e "${YELLOW}[2/10] Fetching latest paqet release from GitHub...${NC}"
