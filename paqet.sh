@@ -873,6 +873,56 @@ test_tunnel() {
     read
 }
 
+# Speed Test
+run_speed_test() {
+    show_header
+    echo -e "${CYAN}━━━ Tunnel Speed Test ━━━${NC}"
+    echo ""
+    
+    # Check prerequisites
+    if ! systemctl is-active --quiet paqet; then
+        echo -e "${RED}✗ Service is NOT running${NC}"
+        read -r
+        return
+    fi
+    
+    if ! command -v proxychains4 &> /dev/null; then
+        echo -e "${RED}✗ Proxychains is NOT installed${NC}"
+        read -r
+        return
+    fi
+    
+    echo -e "${YELLOW}Starting download test (25MB)...${NC}"
+    echo -e "Target: Cloudflare CDN (via Tunnel)"
+    echo ""
+    
+    # Run speed test
+    # We use a 25MB file which is good for average connections
+    TIME_START=$(date +%s.%N)
+    if proxychains4 -q curl -L -o /dev/null --progress-bar -w "%{speed_download}" http://speed.cloudflare.com/__down?bytes=25000000 > /tmp/speedtest_result; then
+        TIME_END=$(date +%s.%N)
+        SPEED_BPS=$(cat /tmp/speedtest_result)
+        
+        # Convert bytes/sec to Mbps
+        # Mbps = (Bytes/sec * 8) / 1000000
+        SPEED_MBPS=$(echo "scale=2; $SPEED_BPS * 8 / 1000000" | bc)
+        
+        echo ""
+        echo -e "${GREEN}✓ Test Completed${NC}"
+        echo -e "  Speed: ${GREEN}${SPEED_MBPS} Mbps${NC}"
+    else
+        echo ""
+        echo -e "${RED}✗ Test Failed${NC}"
+        echo -e "${YELLOW}  Check connection stability${NC}"
+    fi
+    
+    rm -f /tmp/speedtest_result
+    
+    echo ""
+    echo -ne "${YELLOW}Press Enter to continue...${NC}"
+    read
+}
+
 # Backup config
 backup_config() {
     show_header
@@ -1177,12 +1227,13 @@ management_menu() {
         echo -e "  ${GREEN}4${NC}) Performance Stats"
         echo -e "  ${GREEN}5${NC}) Edit Configuration"
         echo -e "  ${GREEN}6${NC}) Test Tunnel"
+        echo -e "  ${GREEN}7${NC}) Speed Test"
         echo ""
         
         echo -e "${CYAN}━━━ Maintenance ━━━${NC}"
-        echo -e "  ${GREEN}7${NC}) Backup Configuration"
-        echo -e "  ${GREEN}8${NC}) Update Paqet"
-        echo -e "  ${RED}9${NC}) Uninstall Paqet"
+        echo -e "  ${GREEN}8${NC}) Backup Configuration"
+        echo -e "  ${GREEN}9${NC}) Update Paqet"
+        echo -e "  ${RED}10${NC}) Uninstall Paqet"
         echo ""
         
         echo -e "  ${RED}0${NC}) Exit"
@@ -1197,9 +1248,10 @@ management_menu() {
             4) performance_stats ;;
             5) edit_config ;;
             6) test_tunnel ;;
-            7) backup_config ;;
-            8) update_paqet ;;
-            9) uninstall_paqet ;;
+            7) run_speed_test ;;
+            8) backup_config ;;
+            9) update_paqet ;;
+            10) uninstall_paqet ;;
             0)
                 echo -e "${GREEN}Goodbye!${NC}"
                 exit 0
