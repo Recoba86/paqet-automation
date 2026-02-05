@@ -10,7 +10,7 @@ One intelligent script that handles **installation AND management** automaticall
 
 ### 1. Download
 ```bash
-wget https://raw.githubusercontent.com/YOUR_REPO/Paqet/main/paqet.sh
+wget https://raw.githubusercontent.com/Recoba86/paqet-automation/main/paqet.sh
 chmod +x paqet.sh
 ```
 

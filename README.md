@@ -30,7 +30,7 @@ Automated installation and management suite for [paqet](https://github.com/hanse
 
 ```bash
 # Download
-wget https://raw.githubusercontent.com/witamin/paqet-automation/main/paqet.sh
+wget https://raw.githubusercontent.com/Recoba86/paqet-automation/main/paqet.sh
 chmod +x paqet.sh
 
 # Run
@@ -44,7 +44,7 @@ sudo ./paqet.sh
 
 ```bash
 # Download
-wget https://raw.githubusercontent.com/witamin/paqet-automation/main/paqet.sh
+wget https://raw.githubusercontent.com/Recoba86/paqet-automation/main/paqet.sh
 chmod +x paqet.sh
 
 # Run

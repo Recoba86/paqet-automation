@@ -150,7 +150,7 @@ Version format: MAJOR.MINOR.PATCH
 
 ### From No Installation → v1.0.0
 ```bash
-wget https://raw.githubusercontent.com/USER/paqet-automation/main/paqet.sh
+wget https://raw.githubusercontent.com/Recoba86/paqet-automation/main/paqet.sh
 chmod +x paqet.sh
 sudo ./paqet.sh
 ```
