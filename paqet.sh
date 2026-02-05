@@ -100,7 +100,7 @@ install_server() {
     
     # Install dependencies
     echo -e "${YELLOW}[1/9] Installing required tools...${NC}"
-    apt-get update -qq
+    apt-get update -qq || true
     # Pre-seed iptables-persistent to avoid prompts
     echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
     echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
@@ -342,7 +342,7 @@ install_client() {
     
     # Install dependencies
     echo -e "${YELLOW}[1/10] Installing required tools...${NC}"
-    apt-get update -qq
+    apt-get update -qq || true
     # Pre-seed iptables-persistent to avoid prompts
     echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
     echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
