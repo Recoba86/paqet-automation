@@ -394,7 +394,21 @@ EOF
             fi
         done
     fi
-    SERVER_IP=$(curl -s -4 ifconfig.me || curl -s -4 icanhazip.com)
+    fi
+    # Robust Public IP Detection (Filters out HTML/Errors)
+    SERVER_IP=""
+    for url in "https://api.ipify.org" "https://ifconfig.me" "https://icanhazip.com" "http://checkip.amazonaws.com"; do
+        IP=$(curl -s -m 5 "$url" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -n 1)
+        if [ -n "$IP" ]; then
+            SERVER_IP="$IP"
+            break
+        fi
+    done
+    
+    if [ -z "$SERVER_IP" ]; then
+        # Last resort fallback: use the address of the default interface if public
+        SERVER_IP=$(ip -4 addr show "$DEFAULT_IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+    fi
     LOCAL_IP=$(ip -4 addr show "$DEFAULT_IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
 
     # Save variables for config generator
