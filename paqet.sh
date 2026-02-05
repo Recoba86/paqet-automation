@@ -340,43 +340,29 @@ EOF
 
     
     # Create config
-    mkdir -p /etc/paqet
+    # Create config
+    echo -e "${YELLOW}Generating configuration...${NC}"
     
-    cat > /etc/paqet/config.yaml <<EOF
-role: "server"
-
-log:
-  level: "info"
-
-listen:
-  addr: ":443"
-
-network:
-  interface: "${DEFAULT_IFACE}"
-  ipv4:
-    addr: "${LOCAL_IP}:443"
-    router_mac: "${ROUTER_MAC}"
-
-transport:
-  protocol: "kcp"
-  conn: 20
-  kcp:
-    mode: "fast3"
-    mtu: 1300
-    rcvwnd: 16384
-    sndwnd: 16384
-    datashard: 20
-    parityshard: 3
-    dscp: 0
-    nocongestion: 1
-    acknodelay: true
-    nodelay: 1
-    interval: 10
-    resend: 3
-    nc: 1
-    wdelay: true
-    key: "${SECRET_KEY}"
-EOF
+    # Set globals for write_paqet_config
+    export ROLE="server"
+    export SERVER_ADDR=":443" # For server, this is the bind address
+    export KEY="$SECURE_KEY"  # Fixed variable name from SECURE_KEY to KEY in export if needed, ensuring match with write_paqet_config which uses $KEY
+    # Wait, earlier I renamed SECRET_KEY to SECURE_KEY in line 327 of replacement? Or did I?
+    # Checking context: line 327 says SECURE_KEY=$(openssl...)
+    # But write_paqet_config uses $KEY.
+    # So I must export KEY="$SECURE_KEY"
+    
+    export IFACE="$DEFAULT_IFACE"
+    export LOCAL_IP="$LOCAL_IP"
+    export ROUTER_MAC="$ROUTER_MAC"
+    
+    # Empty client-specific vars to be safe
+    export SOCKS_LISTEN=""
+    FORWARD_RULES=()
+    
+    write_paqet_config
+    
+    echo -e "${GREEN}✓ Configuration generated${NC}"
     
     # Create systemd service
     echo -e "${YELLOW}[9/9] Creating systemd service...${NC}"
