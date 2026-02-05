@@ -5,6 +5,17 @@ All notable changes to the Paqet Tunnel Automation Project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.6] - 2026-02-05
+### Fixed
+- **Empty Secret Key**: Fixed variable mismatch (`SECURE_KEY` vs `SECRET_KEY`) that caused the key to be hidden in the summary.
+- **Key Persistence**: Fixed issue where re-installing the server generated a new key, breaking existing clients. Now reuses existing keys automatically.
+
+## [1.2.5] - 2026-02-05
+### Fixed
+- **Connectivity**: Added explicit firewall `ACCEPT` rules for UDP 443 (previously traffic was dropped on some providers).
+- **Stability**: Added `chrony` and force-sync time on install to prevent KCP handshake failures caused by clock drift.
+- **Dependency**: Fixed missing `detect_interface` in client installer.
+
 ## [1.2.4] - 2026-02-05
 
 ### Added
