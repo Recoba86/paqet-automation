@@ -328,11 +328,11 @@ EOF
     fi
     
     if [ -n "$EXISTING_KEY" ]; then
-        SECURE_KEY="$EXISTING_KEY"
-        echo -e "${GREEN}✓ Using existing key: $SECURE_KEY${NC}"
+        SECRET_KEY="$EXISTING_KEY"
+        echo -e "${GREEN}✓ Using existing key: $SECRET_KEY${NC}"
     else
-        SECURE_KEY=$(openssl rand -base64 16)
-        echo -e "${GREEN}✓ Generated new key: $SECURE_KEY${NC}"
+        SECRET_KEY=$(openssl rand -base64 16)
+        echo -e "${GREEN}✓ Generated new key: $SECRET_KEY${NC}"
     fi
     SERVER_IP=$(curl -s -4 ifconfig.me || curl -s -4 icanhazip.com)
     LOCAL_IP=$(ip -4 addr show "$DEFAULT_IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
@@ -355,7 +355,7 @@ EOF
     # Set globals for write_paqet_config
     export ROLE="server"
     export SERVER_ADDR=":443" # For server, this is the bind address
-    export KEY="$SECURE_KEY"  # Fixed variable name from SECURE_KEY to KEY in export if needed, ensuring match with write_paqet_config which uses $KEY
+    export KEY="$SECRET_KEY"  # Fixed variable name from SECURE_KEY to KEY in export if needed, ensuring match with write_paqet_config which uses $KEY
     # Wait, earlier I renamed SECRET_KEY to SECURE_KEY in line 327 of replacement? Or did I?
     # Checking context: line 327 says SECURE_KEY=$(openssl...)
     # But write_paqet_config uses $KEY.
