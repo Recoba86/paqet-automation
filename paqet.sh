@@ -1065,6 +1065,127 @@ update_paqet() {
     read
 }
 
+# Configure Port Forwarding
+configure_port_forwarding() {
+    show_header
+    echo -e "${CYAN}━━━ Configure Port Forwarding ━━━${NC}"
+    echo -e "${YELLOW}Forward traffic from this server (Iran) to the foreign server.${NC}"
+    echo ""
+    
+    # Detect config file
+    if [ -f "/etc/paqet/client.yaml" ]; then
+        CONFIG_FILE="/etc/paqet/client.yaml"
+    elif [ -f "/etc/paqet/config.yaml" ]; then
+        CONFIG_FILE="/etc/paqet/config.yaml"
+    else
+        echo -e "${RED}Config file not found!${NC}"
+        read -r
+        return
+    fi
+    
+    # Ask for ports
+    echo -e "Enter the ports you want to forward (comma-separated)."
+    echo -e "Example: ${CYAN}2096,8443,2053${NC}"
+    echo -ne "Ports: "
+    read -r input_ports
+    
+    if [[ -z "$input_ports" ]]; then
+        echo -e "${RED}No ports entered.${NC}"
+        return
+    fi
+    
+    # Process ports
+    IFS=',' read -ra PORT_LIST <<< "$input_ports"
+    
+    # Backup current config
+    cp "$CONFIG_FILE" "${CONFIG_FILE}.bak"
+    
+    # We need to preserve relevant parts of config while injecting the forward block.
+    # It's safer to read the keys and regenerate the file to avoid YAML parsing hell with sed.
+    
+    # Read existing values
+    SERVER_ADDR=$(grep "addr:" "$CONFIG_FILE" | head -n 1 | awk '{print $2}' | tr -d '"')
+    KEY=$(grep "key:" "$CONFIG_FILE" | awk '{print $2}' | tr -d '"')
+    MODE=$(grep "mode:" "$CONFIG_FILE" | awk '{print $2}' | tr -d '"')
+    CONN=$(grep "conn:" "$CONFIG_FILE" | awk '{print $2}')
+    MTU=$(grep "mtu:" "$CONFIG_FILE" | awk '{print $2}')
+    PARITY=$(grep "parityshard:" "$CONFIG_FILE" | awk '{print $2}')
+    DATA=$(grep "data_shard:" "$CONFIG_FILE" | awk '{print $2}')
+    
+    # Default values if missing
+    [ -z "$CONN" ] && CONN=20
+    [ -z "$MTU" ] && MTU=1350
+    [ -z "$PARITY" ] && PARITY=3
+    [ -z "$DATA" ] && DATA=10
+    [ -z "$MODE" ] && MODE="fast3"
+    
+    # Generate new config content
+    cat > "$CONFIG_FILE" << EOF
+role: "client"
+
+log:
+  level: "info"
+
+server:
+  addr: "${SERVER_ADDR}"
+
+# SOCKS5 Proxy (Default)
+socks5:
+  - listen: "0.0.0.0:1080"
+
+# Port Forwarding
+forward:
+EOF
+
+    # Add forwards loop
+    for port in "${PORT_LIST[@]}"; do
+        # trimming whitespace
+        port=$(echo "$port" | xargs) 
+        echo "  - listen: \"0.0.0.0:${port}\"" >> "$CONFIG_FILE"
+        echo "    remote: \"127.0.0.1:${port}\"" >> "$CONFIG_FILE"
+        
+        # Open Firewall
+        setup_firewall_port "$port" &>/dev/null
+    done
+
+    # Finish config
+    cat >> "$CONFIG_FILE" << EOF
+
+transport:
+  protocol: "kcp"
+  conn: $CONN
+  kcp:
+    mode: "$MODE"
+    key: "$KEY"
+    mtu: $MTU
+    snd_wnd: 2048
+    rcv_wnd: 2048
+    data_shard: $DATA
+    parity_shard: $PARITY
+EOF
+
+    echo -e "${GREEN}✓ Configuration updated${NC}"
+    echo -e "${YELLOW}Restarting service...${NC}"
+    systemctl restart paqet
+    echo -e "${GREEN}✓ Done!${NC}"
+    
+    echo ""
+    echo -ne "${YELLOW}Press Enter to continue...${NC}"
+    read
+}
+
+# Helper to open port
+setup_firewall_port() {
+    local port=$1
+    if command -v ufw &> /dev/null; then
+        ufw allow "$port"/tcp
+    fi
+    if command -v iptables &> /dev/null; then
+        iptables -I INPUT -p tcp --dport "$port" -j ACCEPT
+        iptables-save > /etc/iptables/rules.v4 2>/dev/null
+    fi
+}
+
 # Edit Configuration Menu
 edit_config() {
     # Detect config file
@@ -1222,18 +1343,20 @@ management_menu() {
         echo -e "  ${GREEN}2${NC}) View Logs"
         echo ""
         
+        echo -e "${CYAN}━━━ Configuration ━━━${NC}"
+        echo -e "  ${GREEN}5${NC}) Edit Settings (MTU, Mode)"
+        echo -e "  ${GREEN}6${NC}) Port Forwarding"
+        echo ""
+        
         echo -e "${CYAN}━━━ Monitoring ━━━${NC}"
-        echo -e "  ${GREEN}3${NC}) Health Check"
-        echo -e "  ${GREEN}4${NC}) Performance Stats"
-        echo -e "  ${GREEN}5${NC}) Edit Configuration"
-        echo -e "  ${GREEN}6${NC}) Test Tunnel"
-        echo -e "  ${GREEN}7${NC}) Speed Test"
+        echo -e "  ${GREEN}7${NC}) Test Tunnel"
+        echo -e "  ${GREEN}8${NC}) Speed Test"
         echo ""
         
         echo -e "${CYAN}━━━ Maintenance ━━━${NC}"
-        echo -e "  ${GREEN}8${NC}) Backup Configuration"
-        echo -e "  ${GREEN}9${NC}) Update Paqet"
-        echo -e "  ${RED}10${NC}) Uninstall Paqet"
+        echo -e "  ${GREEN}9${NC}) Backup Configuration"
+        echo -e "  ${GREEN}10${NC}) Update Paqet"
+        echo -e "  ${RED}11${NC}) Uninstall Paqet"
         echo ""
         
         echo -e "  ${RED}0${NC}) Exit"
@@ -1247,11 +1370,12 @@ management_menu() {
             3) health_check ;;
             4) performance_stats ;;
             5) edit_config ;;
-            6) test_tunnel ;;
-            7) run_speed_test ;;
-            8) backup_config ;;
-            9) update_paqet ;;
-            10) uninstall_paqet ;;
+            6) configure_port_forwarding ;;
+            7) test_tunnel ;;
+            8) run_speed_test ;;
+            9) backup_config ;;
+            10) update_paqet ;;
+            11) uninstall_paqet ;;
             0)
                 echo -e "${GREEN}Goodbye!${NC}"
                 exit 0
