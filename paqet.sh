@@ -101,7 +101,10 @@ install_server() {
     # Install dependencies
     echo -e "${YELLOW}[1/9] Installing required tools...${NC}"
     apt-get update -qq
-    apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev bc &>/dev/null
+    # Pre-seed iptables-persistent to avoid prompts
+    echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
+    echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev bc &>/dev/null
     echo -e "${GREEN}✓ Tools installed${NC}"
     
     # Fetch latest release
@@ -330,7 +333,10 @@ install_client() {
     # Install dependencies
     echo -e "${YELLOW}[1/10] Installing required tools...${NC}"
     apt-get update -qq
-    apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev git build-essential bc &>/dev/null
+    # Pre-seed iptables-persistent to avoid prompts
+    echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
+    echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev git build-essential bc &>/dev/null
     echo -e "${GREEN}✓ Tools installed${NC}"
     
     # Fetch latest release
