@@ -5,6 +5,17 @@ All notable changes to the Paqet Tunnel Automation Project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2026-02-05
+
+### Added
+- **Interactive Installation**: The installer now asks "Do you want to forward any ports?" during the initial setup process.
+- **Robust Config Management**: Replaced fragile configuration editing with a Single Source of Truth generator that guarantees error-free YAML files.
+- **Architecture Validation**: Implemented strict binary matching (exact name check) to prevent `Exec format error` on mixed-arch releases.
+
+### Fixed
+- **Port Forwarding**: Fixed "missing port in address" error caused by corrupted config files.
+- **Client/Server Consistency**: Unified configuration logic across both roles.
+
 ## [1.2.0] - 2026-02-05
 
 ### Added (New Features)

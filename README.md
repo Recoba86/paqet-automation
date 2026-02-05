@@ -57,7 +57,10 @@ chmod +x paqet.sh
 sudo ./paqet.sh
 ```
 
-Follow the on-screen menu to install.
+sudo ./paqet.sh
+```
+
+Follow the on-screen menu to install. **The script will automatically ask if you want to forward specific ports (e.g. for V2Ray) during the setup.**
 
 ### Manual Installation (Advanced)
 
