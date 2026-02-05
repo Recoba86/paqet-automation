@@ -240,7 +240,7 @@ network:
 
 transport:
   protocol: "kcp"
-  conn: 16
+  conn: 20
   kcp:
     mode: "fast3"
     mtu: 1350
