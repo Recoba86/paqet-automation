@@ -209,7 +209,7 @@ install_server() {
     echo -e "${YELLOW}[4/9] Downloading paqet binary...${NC}"
     # Target filename pattern: paqet-linux-amd64-v1.0.0-alpha.14.tar.gz
     # We match "paqet-linux-${ARCH_NAME}-" to be safe.
-    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name | contains(\"paqet-linux-${ARCH_NAME}-\") and .name | endswith(\".tar.gz\")) | .browser_download_url" | head -n 1)
+    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name != null) | select(.name | contains(\"paqet-linux-${ARCH_NAME}-\")) | select(.name | endswith(\".tar.gz\")) | .browser_download_url" | head -n 1)
     
     if [ -z "$DOWNLOAD_URL" ]; then
         echo -e "${RED}Could not find download URL for linux-${ARCH_NAME}${NC}"
@@ -498,7 +498,7 @@ install_client() {
     echo -e "${YELLOW}[4/10] Downloading paqet binary...${NC}"
     # Target filename pattern: paqet-linux-amd64-v1.0.0-alpha.14.tar.gz
     # We match "paqet-linux-${ARCH_NAME}-" to be safe.
-    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name | contains(\"paqet-linux-${ARCH_NAME}-\") and .name | endswith(\".tar.gz\")) | .browser_download_url" | head -n 1)
+    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name != null) | select(.name | contains(\"paqet-linux-${ARCH_NAME}-\")) | select(.name | endswith(\".tar.gz\")) | .browser_download_url" | head -n 1)
     
     if [ -z "$DOWNLOAD_URL" ]; then
          echo -e "${RED}Could not find download URL for linux-${ARCH_NAME}${NC}"
