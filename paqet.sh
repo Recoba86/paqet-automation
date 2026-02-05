@@ -146,8 +146,21 @@ install_server() {
     # Install binary
     echo -e "${YELLOW}[5/9] Installing paqet binary...${NC}"
     tar -xzf /tmp/paqet.tar.gz -C /tmp/
-    chmod +x /tmp/paqet
-    mv /tmp/paqet /usr/local/bin/paqet
+    
+    # Find the binary (it might be named paqet_linux_amd64, etc.)
+    EXTRACTED_BINARY=$(find /tmp -maxdepth 1 -type f -name "paqet_*" | head -n 1)
+    if [ -z "$EXTRACTED_BINARY" ]; then
+        # Fallback check for just 'paqet'
+        if [ -f "/tmp/paqet" ]; then
+            EXTRACTED_BINARY="/tmp/paqet"
+        else
+            echo -e "${RED}Failed to find extracted binary${NC}"
+            exit 1
+        fi
+    fi
+    
+    chmod +x "$EXTRACTED_BINARY"
+    mv "$EXTRACTED_BINARY" /usr/local/bin/paqet
     rm -f /tmp/paqet.tar.gz
     
     # Fix libpcap
@@ -362,8 +375,21 @@ install_client() {
     # Install binary
     echo -e "${YELLOW}[5/10] Installing paqet binary...${NC}"
     tar -xzf /tmp/paqet.tar.gz -C /tmp/
-    chmod +x /tmp/paqet
-    mv /tmp/paqet /usr/local/bin/paqet
+    
+    # Find the binary (it might be named paqet_linux_amd64, etc.)
+    EXTRACTED_BINARY=$(find /tmp -maxdepth 1 -type f -name "paqet_*" | head -n 1)
+    if [ -z "$EXTRACTED_BINARY" ]; then
+        # Fallback check for just 'paqet'
+        if [ -f "/tmp/paqet" ]; then
+            EXTRACTED_BINARY="/tmp/paqet"
+        else
+            echo -e "${RED}Failed to find extracted binary${NC}"
+            exit 1
+        fi
+    fi
+    
+    chmod +x "$EXTRACTED_BINARY"
+    mv "$EXTRACTED_BINARY" /usr/local/bin/paqet
     rm -f /tmp/paqet.tar.gz
     
     # Fix libpcap
