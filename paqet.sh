@@ -67,6 +67,12 @@ write_paqet_config() {
     local file="/etc/paqet/config.yaml"
     mkdir -p /etc/paqet
     
+    # Ensure LOCAL_IP has a port (Default to :0 if missing)
+    # This prevents "missing port in address" errors
+    if [[ "$LOCAL_IP" != *:* ]]; then
+        LOCAL_IP="${LOCAL_IP}:0"
+    fi
+    
     # Common header
     cat > "$file" <<EOF
 role: "$ROLE"
