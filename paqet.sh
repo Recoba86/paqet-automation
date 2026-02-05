@@ -28,13 +28,13 @@ check_root() {
 
 # Detect installation state
 is_installed() {
-    [ -f "/usr/local/bin/paqet" ] && [ -f "/etc/paqet/config.json" ]
+    [ -f "/usr/local/bin/paqet" ] && [ -f "/etc/paqet/config.yaml" ]
 }
 
 # Get current mode
 get_mode() {
-    if [ -f "/etc/paqet/config.json" ]; then
-        grep -o '"mode": "[^"]*"' /etc/paqet/config.json | cut -d'"' -f4
+    if [ -f "/etc/paqet/config.yaml" ]; then
+        grep '^mode:' /etc/paqet/config.yaml | awk '{print $2}'
     else
         echo "unknown"
     fi
@@ -219,31 +219,28 @@ EOF
     # Create config
     mkdir -p /etc/paqet
     
-    cat > /etc/paqet/config.json <<EOF
-{
-  "mode": "server",
-  "listen": ":443",
-  "secret": "${SECRET_KEY}",
-  "iface": "${DEFAULT_IFACE}",
-  "gateway_mac": "${ROUTER_MAC}",
-  "mtu": 1500,
-  "kcp": {
-    "mode": "fast3",
-    "conn": 16,
-    "mtu": 1400,
-    "sndwnd": 8192,
-    "rcvwnd": 8192,
-    "datashard": 10,
-    "parityshard": 3,
-    "dscp": 46,
-    "nocongestion": 1,
-    "acknodelay": true,
-    "nodelay": 1,
-    "interval": 10,
-    "resend": 2,
-    "nc": 1
-  }
-}
+    cat > /etc/paqet/config.yaml <<EOF
+mode: server
+listen: :443
+secret: ${SECRET_KEY}
+iface: ${DEFAULT_IFACE}
+gateway_mac: ${ROUTER_MAC}
+mtu: 1500
+kcp:
+  mode: fast3
+  conn: 16
+  mtu: 1400
+  sndwnd: 8192
+  rcvwnd: 8192
+  datashard: 10
+  parityshard: 3
+  dscp: 46
+  nocongestion: 1
+  acknodelay: true
+  nodelay: 1
+  interval: 10
+  resend: 2
+  nc: 1
 EOF
     
     # Create systemd service
@@ -258,7 +255,7 @@ Documentation=https://github.com/hanselime/paqet
 Type=simple
 User=root
 WorkingDirectory=/etc/paqet
-ExecStart=/usr/local/bin/paqet run -c /etc/paqet/config.json
+ExecStart=/usr/local/bin/paqet run -c /etc/paqet/config.yaml
 
 # Logging
 StandardOutput=journal
@@ -444,32 +441,29 @@ EOF
     # Create config
     mkdir -p /etc/paqet
     
-    cat > /etc/paqet/config.json <<EOF
-{
-  "mode": "client",
-  "server": "${SERVER_IP}:443",
-  "secret": "${SECRET_KEY}",
-  "iface": "${DEFAULT_IFACE}",
-  "gateway_mac": "${ROUTER_MAC}",
-  "socks5": "0.0.0.0:1080",
-  "mtu": 1500,
-  "kcp": {
-    "mode": "fast3",
-    "conn": 16,
-    "mtu": 1400,
-    "sndwnd": 8192,
-    "rcvwnd": 8192,
-    "datashard": 10,
-    "parityshard": 3,
-    "dscp": 46,
-    "nocongestion": 1,
-    "acknodelay": true,
-    "nodelay": 1,
-    "interval": 10,
-    "resend": 2,
-    "nc": 1
-  }
-}
+    cat > /etc/paqet/config.yaml <<EOF
+mode: client
+server: ${SERVER_IP}:443
+secret: ${SECRET_KEY}
+iface: ${DEFAULT_IFACE}
+gateway_mac: ${ROUTER_MAC}
+socks5: 0.0.0.0:1080
+mtu: 1500
+kcp:
+  mode: fast3
+  conn: 16
+  mtu: 1400
+  sndwnd: 8192
+  rcvwnd: 8192
+  datashard: 10
+  parityshard: 3
+  dscp: 46
+  nocongestion: 1
+  acknodelay: true
+  nodelay: 1
+  interval: 10
+  resend: 2
+  nc: 1
 EOF
     
     # Install proxychains
@@ -510,7 +504,7 @@ Documentation=https://github.com/hanselime/paqet
 Type=simple
 User=root
 WorkingDirectory=/etc/paqet
-ExecStart=/usr/local/bin/paqet run -c /etc/paqet/config.json
+ExecStart=/usr/local/bin/paqet run -c /etc/paqet/config.yaml
 
 # Logging
 StandardOutput=journal
@@ -684,7 +678,7 @@ performance_stats() {
     echo ""
     
     MODE=$(get_mode)
-    IFACE=$(grep -o '"iface": "[^"]*"' /etc/paqet/config.json | cut -d'"' -f4)
+    IFACE=$(grep '^iface:' /etc/paqet/config.yaml | awk '{print $2}')
     
     # Service info
     echo -e "${GREEN}Mode:${NC}         $MODE"
@@ -760,7 +754,7 @@ test_tunnel() {
     
     # Test 3: Config
     echo -e "${YELLOW}[3/4] Configuration${NC}"
-    if jq empty /etc/paqet/config.json 2>/dev/null; then
+    if [ -f "/etc/paqet/config.yaml" ]; then
         echo -e "${GREEN}✅ PASS - Valid JSON${NC}"
     else
         echo -e "${RED}❌ FAIL - Invalid config${NC}"
@@ -806,9 +800,9 @@ backup_config() {
     echo -e "${YELLOW}Creating backup...${NC}"
     
     # Copy files
-    if [ -f "/etc/paqet/config.json" ]; then
+    if [ -f "/etc/paqet/config.yaml" ]; then
         mkdir -p "$TEMP_DIR/etc/paqet"
-        cp /etc/paqet/config.json "$TEMP_DIR/etc/paqet/"
+        cp /etc/paqet/config.yaml "$TEMP_DIR/etc/paqet/"
     fi
     
     if [ -f "/etc/systemd/system/paqet.service" ]; then
