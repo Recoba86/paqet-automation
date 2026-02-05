@@ -50,80 +50,7 @@ show_header() {
     echo ""
 }
 
-# Generate Configuration (Single Source of Truth)
-generate_config() {
-    local role=$1
-    local server_addr=$2
-    local iface=$3
-    local local_ip=$4
-    local router_mac=$5
-    local key=$6
-    local socks_listen=$7
-    local forward_rules=("${!8}") # Array of strings like '- listen: "..."'
 
-    mkdir -p /etc/paqet
-    cat > /etc/paqet/config.yaml <<EOF
-role: "$role"
-
-log:
-  level: "info"
-
-server:
-  addr: "$server_addr"
-
-network:
-  interface: "$iface"
-  ipv4:
-    addr: "$local_ip"
-    router_mac: "$router_mac"
-
-transport:
-  protocol: "kcp"
-  conn: 20
-  kcp:
-    mode: "fast3"
-    mtu: 1300
-    snd_wnd: 2048
-    rcv_wnd: 2048
-    data_shard: 10
-    parity_shard: 3
-    dscp: 0
-    key: "$key"
-EOF
-
-    # Client specific sections
-    if [ "$role" == "client" ]; then
-        echo "" >> /etc/paqet/config.yaml
-        echo "# SOCKS5 Proxy" >> /etc/paqet/config.yaml
-        echo "socks5:" >> /etc/paqet/config.yaml
-        echo "  - listen: \"$socks_listen\"" >> /etc/paqet/config.yaml
-        
-        echo "" >> /etc/paqet/config.yaml
-        echo "# Port Forwarding" >> /etc/paqet/config.yaml
-        echo "forward:" >> /etc/paqet/config.yaml
-        
-        # Inject forward rules if any
-        if [ ${#forward_rules[@]} -gt 0 ]; then
-            for rule in "${forward_rules[@]}"; do
-                echo "$rule" >> /etc/paqet/config.yaml
-            done
-        fi
-    else
-        # Server specific overrides (listen block instead of server addr remote)
-        # Wait, the structure differs slightly for server (listen block vs server block).
-        # Server config:
-        # listen:
-        #   addr: ":443"
-        # Client config:
-        # server:
-        #   addr: "IP:443"
-        
-        # Correction: The generated block above wrote 'server: addr: ...'.
-        # For server role, we need 'listen: addr: ...' NOT 'server: addr: ...'
-        # rewriting strict logic below with conditional.
-        :
-    fi
-}
 
 # Secure Config Generator (Revised)
 write_paqet_config() {
@@ -533,6 +460,27 @@ install_client() {
         exit 1
     fi
     
+    # Prompt for Port Forwarding (New Feature)
+    echo -e "${YELLOW}Do you want to forward any ports (e.g. for V2Ray)? (y/n)${NC}"
+    read -r ask_forward
+    FORWARD_RULES=()
+    
+    if [[ "$ask_forward" =~ ^[Yy]$ ]]; then
+        echo -e "Enter ports (comma-separated, e.g. 2096,8443): "
+        read -r input_ports
+        
+        # Build Forward Rules Array
+        mapfile -t PORT_LIST < <(echo "$input_ports" | tr ',' '\n')
+        for port in "${PORT_LIST[@]}"; do
+            port=$(echo "$port" | tr -d '[:space:]')
+            if [[ -z "$port" ]] || ! [[ "$port" =~ ^[0-9]+$ ]]; then continue; fi
+            
+            FORWARD_RULES+=("  - listen: \"0.0.0.0:${port}\"")
+            FORWARD_RULES+=("    remote: \"127.0.0.1:${port}\"")
+            setup_firewall_port "$port" &>/dev/null
+        done
+    fi
+
     echo ""
     
     # Install dependencies
@@ -664,48 +612,22 @@ EOF
     
     echo -e "${GREEN}✓ Optimizations applied${NC}"
     
-    # Create config
+    # Create config (Using Robust Generator)
     LOCAL_IP=$(ip -4 addr show "$DEFAULT_IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
-    mkdir -p /etc/paqet
     
-    cat > /etc/paqet/config.yaml <<-EOF
-role: "client"
-
-log:
-  level: "info"
-
-server:
-  addr: "${SERVER_IP}:443"
-
-network:
-  interface: "${DEFAULT_IFACE}"
-  ipv4:
-    addr: "${LOCAL_IP}:0"
-    router_mac: "${ROUTER_MAC}"
-
-transport:
-  protocol: "kcp"
-  conn: 20
-  kcp:
-    mode: "fast3"
-    mtu: 1300
-    rcvwnd: 16384
-    sndwnd: 16384
-    datashard: 20
-    parityshard: 3
-    dscp: 0
-    nocongestion: 1
-    acknodelay: true
-    nodelay: 1
-    interval: 10
-    resend: 3
-    nc: 1
-    wdelay: true
-    key: "${SECRET_KEY}"
-
-socks5:
-  - listen: "0.0.0.0:1080"
-EOF
+    # Set globals for write_paqet_config
+    export ROLE="client"
+    export SERVER_ADDR="$SERVER_IP:443"
+    export KEY="$SECRET_KEY"
+    export IFACE="$DEFAULT_IFACE"
+    export LOCAL_IP="$LOCAL_IP":0
+    export ROUTER_MAC="$ROUTER_MAC"
+    export SOCKS_LISTEN="0.0.0.0:1080"
+    # FORWARD_RULES array is already populated above
+    
+    write_paqet_config
+    
+    echo -e "${GREEN}✓ Configuration generated${NC}"
     
     # Install proxychains
     echo -e "${YELLOW}[9/10] Installing and configuring proxychains4...${NC}"
