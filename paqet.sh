@@ -1158,16 +1158,20 @@ configure_port_forwarding() {
     PARITY=$(grep "parityshard:" "$CONFIG_FILE" | awk '{print $2}')
     DATA=$(grep "data_shard:" "$CONFIG_FILE" | awk '{print $2}')
     
-    # Read Network Settings (Crucial!)
-    IFACE=$(grep "interface:" "$CONFIG_FILE" | awk '{print $2}' | tr -d '"')
-    # Use robust grep for nested values
-    LOCAL_IP=$(grep -A3 "network:" "$CONFIG_FILE" | grep "addr:" | awk '{print $2}' | tr -d '"')
-    ROUTER_MAC=$(grep -A3 "network:" "$CONFIG_FILE" | grep "router_mac:" | awk '{print $2}' | tr -d '"')
-
-    # Read SOCKS5 listen address (preserve user setting)
-    # The previous logic was buggy if multiple listen lines existed.
-    # Looking for the listen under socks5 specifically.
-    SOCKS_LISTEN=$(sed -n '/socks5:/,/forward:/p' "$CONFIG_FILE" | grep "listen:" | head -n 1 | awk '{print $2}' | tr -d '"')
+    # Read Network Settings (More Robust Parsing)
+    # 1. Interface (Unique key in top-level usually)
+    IFACE=$(grep "interface:" "$CONFIG_FILE" | head -n 1 | awk '{print $2}' | tr -d '"')
+    
+    # 2. Local IP (Reliable grep for nested structure)
+    # We look for the addr inside the network->ipv4 block
+    LOCAL_IP=$(sed -n '/network:/,/server:/p' "$CONFIG_FILE" | grep "addr:" | head -n 1 | awk '{print $2}' | tr -d '"')
+    
+    # 3. Router MAC (Unique)
+    ROUTER_MAC=$(grep "router_mac:" "$CONFIG_FILE" | head -n 1 | awk '{print $2}' | tr -d '"')
+    
+    # 4. SOCKS Listen
+    # Extract value inside quotes: listen: "0.0.0.0:1080"
+    SOCKS_LISTEN=$(grep -A5 "socks5:" "$CONFIG_FILE" | grep "listen:" | head -n 1 | awk -F'"' '{print $2}')
     [ -z "$SOCKS_LISTEN" ] && SOCKS_LISTEN="0.0.0.0:1080"
     
     # Default values if missing
