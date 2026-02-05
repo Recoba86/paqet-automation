@@ -1139,8 +1139,9 @@ configure_port_forwarding() {
         return
     fi
     
-    # Process ports
-    IFS=',' read -ra PORT_LIST <<< "$input_ports"
+    # Process ports (Robust Splitting)
+    # Convert commas to newlines and read into array to handle spacing cleanly
+    mapfile -t PORT_LIST < <(echo "$input_ports" | tr ',' '\n')
     
     # Backup current config
     cp "$CONFIG_FILE" "${CONFIG_FILE}.bak"
@@ -1154,7 +1155,6 @@ configure_port_forwarding() {
     MODE=$(grep "mode:" "$CONFIG_FILE" | awk '{print $2}' | tr -d '"')
     CONN=$(grep "conn:" "$CONFIG_FILE" | awk '{print $2}')
     MTU=$(grep "mtu:" "$CONFIG_FILE" | awk '{print $2}')
-    PARITY=$(grep "parityshard:" "$CONFIG_FILE" | awk '{print $2}')
     PARITY=$(grep "parityshard:" "$CONFIG_FILE" | awk '{print $2}')
     DATA=$(grep "data_shard:" "$CONFIG_FILE" | awk '{print $2}')
     
@@ -1229,8 +1229,18 @@ EOF
 
     # Add forwards loop
     for port in "${PORT_LIST[@]}"; do
-        # trimming whitespace
-        port=$(echo "$port" | xargs) 
+        # TRIM whitespace/newlines
+        port=$(echo "$port" | tr -d '[:space:]')
+        
+        # Skip empty entries
+        if [[ -z "$port" ]]; then continue; fi
+        
+        # Validate integer
+        if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+            echo -e "${YELLOW}Skipping invalid port: '$port'${NC}"
+            continue
+        fi
+        
         echo "  - listen: \"0.0.0.0:${port}\"" >> "$CONFIG_FILE"
         echo "    remote: \"127.0.0.1:${port}\"" >> "$CONFIG_FILE"
         
