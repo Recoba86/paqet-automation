@@ -52,6 +52,16 @@ show_header() {
 
 
 
+# Robust Network Interface Detection
+detect_interface() {
+    local iface
+    iface=$(ip -4 route show default | awk '{print $5}' | head -n 1)
+    if [ -z "$iface" ]; then
+         iface=$(ip -o link show | awk -F': ' '{print $2}' | grep -v "lo" | head -n 1)
+    fi
+    echo "$iface"
+}
+
 # Secure Config Generator (Revised)
 write_paqet_config() {
     local file="/etc/paqet/config.yaml"
@@ -248,17 +258,6 @@ install_server() {
     
     # Network discovery
     echo -e "${YELLOW}[7/9] Discovering network configuration...${NC}"
-    
-    # Robust detection logic
-    detect_interface() {
-        local iface
-        iface=$(ip -4 route show default | awk '{print $5}' | head -n 1)
-        # Fallback 1: First non-loopback interface
-        if [ -z "$iface" ]; then
-             iface=$(ip -o link show | awk -F': ' '{print $2}' | grep -v "lo" | head -n 1)
-        fi
-        echo "$iface"
-    }
     
     DEFAULT_IFACE=$(detect_interface)
     GATEWAY=$(ip route | grep default | awk '{print $3}' | head -n 1)
@@ -551,15 +550,6 @@ install_client() {
     
     # Network Discovery (Moved here to ensure IFACE is sets)
     echo -e "${YELLOW}[7/10] Discovering network configuration...${NC}"
-    
-    detect_interface() {
-        local iface
-        iface=$(ip -4 route show default | awk '{print $5}' | head -n 1)
-        if [ -z "$iface" ]; then
-             iface=$(ip -o link show | awk -F': ' '{print $2}' | grep -v "lo" | head -n 1)
-        fi
-        echo "$iface"
-    }
     
     DEFAULT_IFACE=$(detect_interface)
     GATEWAY=$(ip route | grep default | awk '{print $3}' | head -n 1)
