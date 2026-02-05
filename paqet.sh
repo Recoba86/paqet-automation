@@ -1467,7 +1467,7 @@ edit_config() {
         # Read current values
         CUR_MTU=$(grep "mtu:" "$CONFIG_FILE" | awk '{print $2}')
         CUR_CONN=$(grep "conn:" "$CONFIG_FILE" | awk '{print $2}')
-        CUR_PARITY=$(grep "parityshard:" "$CONFIG_FILE" | awk '{print $2}')
+        CUR_PARITY=$(grep -E "parity_?shard:" "$CONFIG_FILE" | awk '{print $2}')
         CUR_MODE=$(grep "mode:" "$CONFIG_FILE" | awk '{print $2}' | tr -d '"')
         
         echo -e "  ${GREEN}1${NC}) Change MTU         (Current: ${CYAN}$CUR_MTU${NC})"
