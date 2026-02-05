@@ -1,338 +1,382 @@
-# 🚀 Paqet Tunnel Automation
+# paqet - Transport over Raw Packet
 
-> **One script to install, manage, and monitor your paqet tunnel**
-
-Automated installation and management suite for [paqet](https://github.com/hanselime/paqet) with extreme speed optimizations, automatic updates, and comprehensive monitoring tools.
-
+[![Go Version](https://img.shields.io/badge/go-1.25+-blue.svg)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/witamin/paqet-automation/releases)
-[![Tested](https://img.shields.io/badge/tested-Ubuntu%2020.04%2B-success.svg)](https://ubuntu.com)
 
----
+`paqet` is a bidirectional Packet-level proxy built using raw sockets in Go. It forwards traffic from a local client to a remote server, which then connects to target services. By operating at the packet level, it completely bypasses the host operating system's TCP/IP stack and uses KCP for secure, reliable transport.
 
-## ✨ Features
+> **⚠️ Development Status Notice**
+>
+> This project is in **active development**. APIs, configuration formats, protocol specifications, and command-line interfaces may change without notice. Expect breaking changes between versions. Use with caution in production environments.
 
-- 🎯 **One Script for Everything** - Install, manage, monitor, all in one file
-- 🔄 **Dynamic GitHub Versioning** - Always gets the latest paqet release
-- ⚡ **Extreme Speed Mode** - fast3 with 10ms interval, 8192 windows
-- 🛡️ **Secure by Default** - AES-256 encryption + secure key generation
-- 🔧 **Auto Network Discovery** - Detects interface, gateway, router MAC
-- 📊 **Built-in Monitoring** - Health checks, stats, testing, backups
-- 🚦 **TCP BBR** - Automatic congestion control optimization
-- 🔁 **Auto-restart** - Systemd service with failure recovery
-- 👥 **Multi-user Ready** - 16 concurrent connections supported
+This project serves as an example of low-level network programming in Go, demonstrating concepts like:
 
----
+- Raw packet crafting and injection with `gopacket`.
+- Packet capture with `pcap`.
+- Custom binary network protocols.
+- The security implications of operating below the standard OS firewall.
 
-## 📥 Quick Start
+## Use Cases and Motivation
 
-### Server (Foreign/Outside Iran)
+`paqet` is designed for specific scenarios where standard VPN or SSH tunnels may be insufficient. Its primary use cases include bypassing firewalls that detect standard handshake protocols by using custom packet structures, network security research for penetration testing and data exfiltration, and evading kernel-level connection tracking for monitoring avoidance.
+
+While `paqet` includes built-in encryption via KCP, it is more complex to configure than general-purpose VPN solutions.
+
+## How It Works
+
+`paqet` creates a transport channel using KCP over raw TCP packets, bypassing the OS's TCP/IP stack entirely. It captures packets using pcap and injects crafted TCP packets containing encrypted transport data, allowing it to bypass kernel-level connection tracking and evade firewalls.
+
+```
+[Your App] <------> [paqet Client] <===== Raw TCP Packet =====> [paqet Server] <------> [Target Server]
+(e.g. curl)        (localhost:1080)        (Internet)          (Public IP:PORT)     (e.g. https://httpbin.org)
+```
+
+The system operates in three layers: raw TCP packet injection, encrypted transport (KCP), and application-level connection multiplexing.
+
+KCP provides reliable, encrypted communication optimized for high-loss or unpredictable networks, using aggressive retransmission, forward error correction, and symmetric encryption with a shared secret key. It is especially well-suited for real-time applications and gaming where low latency are critical.
+
+## Getting Started
+
+### Prerequisites
+
+- `libpcap` development libraries must be installed on both the client and server machines.
+  - **Debian/Ubuntu:** `sudo apt-get install libpcap-dev`
+  - **RHEL/CentOS/Fedora:** `sudo yum install libpcap-devel`
+  - **macOS:** Comes pre-installed with Xcode Command Line Tools. Install with `xcode-select --install`
+  - **Windows:** Install Npcap. Download from [npcap.com](https://npcap.com/).
+
+Download the pre-compiled binary? **NO! Use the automated script below.**
+
+### Quick Start (One-Click Install)
+
+**Works on Server (Foreign) AND Client (Iran)**
 
 ```bash
-# Download
 wget https://raw.githubusercontent.com/Recoba86/paqet-automation/main/paqet.sh
 chmod +x paqet.sh
-
-# Run
-sudo ./paqet.sh
-
-# Choose: 1) Foreign Server
-# SAVE the displayed Server IP + Secret Key!
-```
-
-### Client (Iran)
-
-```bash
-# Download
-wget https://raw.githubusercontent.com/Recoba86/paqet-automation/main/paqet.sh
-chmod +x paqet.sh
-
-# Run
-sudo ./paqet.sh
-
-# Choose: 2) Iran Client
-# Enter the Server IP and Secret Key
-
-# Test it works
-sudo ./paqet.sh
-# Choose: 5) Test Tunnel
-```
-
----
-
-## 🎛️ Management
-
-After installation, run the same script for full management:
-
-```bash
 sudo ./paqet.sh
 ```
 
-### Menu Options
+Follow the on-screen menu to install.
 
+### Manual Installation (Advanced)
+
+If you prefer to download binaries manually:
+1. Download a release from the **Releases page**.
+
+You will also need the configuration files from the `example/` directory.
+
+### 2. Configure the Connection
+
+paqet uses a unified configuration approach with role-based settings. Copy and modify either:
+
+- `example/client.yaml.example` - Client configuration example
+- `example/server.yaml.example` - Server configuration example
+
+You must correctly set the interfaces, IP addresses, MAC addresses, and ports.
+
+> **⚠️ Important:**
+>
+> - **Role Configuration**: Role must be explicitly set as `role: "client"` or `role: "server"`
+> - **Transport Security**: KCP requires identical keys on client/server.
+> - **Configuration**: See "Critical Configuration Points" section below for detailed security requirements
+
+#### Finding Your Network Details
+
+You'll need to find your network interface name, local IP, and the MAC address of your network's gateway (router).
+
+**On Linux:**
+
+1.  **Find Interface and Local IP:** Run `ip a`. Look for your primary network card (e.g., `eth0`, `ens3`). Its IP address is listed under `inet`.
+2.  **Find Gateway MAC:**
+    - First, find your gateway's IP: `ip r | grep default`
+    - Then, find its MAC address with `arp -n <gateway_ip>` (e.g., `arp -n 192.168.1.1`).
+
+**On macOS:**
+
+1.  **Find Interface and Local IP:** Run `ifconfig`. Look for your primary interface (e.g., `en0`). Its IP is listed under `inet`.
+2.  **Find Gateway MAC:**
+    - First, find your gateway's IP: `netstat -rn | grep default`
+    - Then, find its MAC address with `arp -n <gateway_ip>` (e.g., `arp -n 192.168.1.1`).
+
+**On Windows:**
+
+1. **Find Interface and Local IP:** Run `ipconfig /all` and note your active network adapter (Ethernet or Wi-Fi):
+   - Its **IP Address**
+   - The **Gateway IP Address**
+2. **Find Interface device GUID:** Windows requires the Npcap device GUID. In PowerShell, run `Get-NetAdapter | Select-Object Name, InterfaceGuid`. Note the **Name** and **InterfaceGuid** of your active network interface, and format the GUID as `\Device\NPF_{GUID}`.
+3. **Find Gateway MAC Address:** Run: `arp -a <gateway_ip>`. Note the MAC address for the gateway.
+
+#### Client Configuration - SOCKS5 Proxy Mode
+
+The client acts as a SOCKS5 proxy server, accepting connections from applications and dynamically forwarding them through the raw TCP packets to any destination.
+
+#### Example Client Configuration (`config.yaml`)
+
+```yaml
+# Role must be explicitly set
+role: "client"
+
+# Logging configuration
+log:
+  level: "info" # none, debug, info, warn, error, fatal
+
+# SOCKS5 proxy configuration (client mode)
+socks5:
+  - listen: "127.0.0.1:1080" # SOCKS5 proxy listen address
+
+# Port forwarding configuration (can be used alongside SOCKS5)
+# forward:
+#   - listen: "127.0.0.1:8080"  # Local port to listen on
+#     target: "127.0.0.1:80"    # Target to forward to (via server)
+#     protocol: "tcp"           # Protocol (tcp/udp)
+
+# Network interface settings
+network:
+  interface: "en0" # CHANGE ME: Network interface (en0, eth0, wlan0, etc.)
+  # guid: "\Device\NPF_{...}" # Windows only (Npcap).
+  ipv4:
+    addr: "192.168.1.100:0" # CHANGE ME: Local IP (use port 0 for random port)
+    router_mac: "aa:bb:cc:dd:ee:ff" # CHANGE ME: Gateway/router MAC address
+
+# Server connection settings
+server:
+  addr: "10.0.0.100:9999" # CHANGE ME: paqet server address and port
+
+# Transport protocol configuration
+transport:
+  protocol: "kcp" # Transport protocol (currently only "kcp" supported)
+  kcp:
+    block: "aes" # Encryption algorithm
+    key: "your-secret-key-here" # CHANGE ME: Secret key (must match server)
 ```
-━━━ Service ━━━
-  1) Service Control    - Start/stop/restart
-  2) View Logs         - Live journalctl output
 
-━━━ Monitoring ━━━
-  3) Health Check      - Auto-diagnosis and recovery
-  4) Performance Stats - CPU, memory, bandwidth
-  5) Test Tunnel       - 4-step validation
+#### Example Server Configuration (`config.yaml`)
 
-━━━ Maintenance ━━━
-  6) Backup Config     - Timestamped backups
-  7) Update Paqet      - One-click version updates
+```yaml
+# Role must be explicitly set
+role: "server"
+
+# Logging configuration
+log:
+  level: "info" # none, debug, info, warn, error, fatal
+
+# Server listen configuration
+listen:
+  addr: ":9999" # CHANGE ME: Server listen port (must match network.ipv4.addr port)
+
+# Network interface settings
+network:
+  interface: "eth0" # CHANGE ME: Network interface (eth0, ens3, en0, etc.)
+  ipv4:
+    addr: "10.0.0.100:9999" # CHANGE ME: Server IPv4 and port (port must match listen.addr)
+    router_mac: "aa:bb:cc:dd:ee:ff" # CHANGE ME: Gateway/router MAC address
+
+# Transport protocol configuration
+transport:
+  protocol: "kcp" # Transport protocol (currently only "kcp" supported)
+  kcp:
+    block: "aes" # Encryption algorithm
+    key: "your-secret-key-here" # CHANGE ME: Secret key (must match client)
 ```
 
----
+#### Critical Firewall Configuration
 
-## ⚡ Performance
+This application uses `pcap` to receive and inject packets at a low level, **bypassing traditional firewalls like `ufw` or `firewalld`**. However, the OS kernel will still see incoming packets for the connection port and, not knowing about the connection, will generate TCP `RST` (reset) packets. While your connection may appear to work initially, these kernel-generated RST packets can corrupt connection state in NAT devices and stateful firewalls, leading to connection instability, packet drops, and premature connection termination in complex network environments.
 
-### Speed Optimizations
+You **must** configure `iptables` on the server to prevent the kernel from interfering.
 
-- **Mode**: fast3 (extreme speed)
-- **Interval**: 10ms (ultra-low latency)
-- **Windows**: 8192 send + 8192 receive
-- **Connections**: 16 concurrent
-- **TCP BBR**: Enabled automatically
-- **Latency**: 30-40% reduction vs TCP
-- **Throughput**: 2-4x improvement
-
-### KCP Configuration
-
-```json
-{
-  "mode": "fast3",
-  "conn": 16,
-  "interval": 10,
-  "sndwnd": 8192,
-  "rcvwnd": 8192,
-  "nocongestion": 1,
-  "acknodelay": true,
-  "nodelay": 1,
-  "resend": 2
-}
-```
-
-📖 **Deep dive**: See [PERFORMANCE.md](PERFORMANCE.md)
-
----
-
-## 🛠️ What It Does
-
-### Installation
-
-1. ✅ Installs all dependencies (curl, wget, jq, etc.)
-2. ✅ Fetches latest paqet release from GitHub
-3. ✅ Auto-detects system architecture (amd64/arm64/armv7)
-4. ✅ Discovers network configuration automatically
-5. ✅ Applies TCP BBR and iptables optimizations
-6. ✅ Generates secure random secret keys (server)
-7. ✅ Configures extreme speed mode (fast3)
-8. ✅ Creates systemd service with auto-restart
-9. ✅ Installs proxychains4 (client only)
-
-### Management
-
-- **Health Checks** - Service, process, port, memory monitoring
-- **Performance Stats** - Real-time metrics and network usage
-- **Tunnel Testing** - Connection validation with external IP check
-- **Backups** - Automated config backups (keeps last 5)
-- **Updates** - One-click upgrades with automatic rollback
-- **Log Viewing** - Live journalctl integration
-
----
-
-## 📋 Requirements
-
-- **OS**: Ubuntu 20.04+ or Debian 11+
-- **Architecture**: x86_64 (amd64), ARM64, or ARMv7
-- **Init System**: systemd
-- **Privileges**: Root access required
-- **Kernel**: 4.9+ (for TCP BBR)
-
----
-
-## 🔧 Advanced Usage
-
-### Automated Monitoring
-
-Set up cron job for health checks:
+Run these commands as root on your server:
 
 ```bash
-sudo crontab -e
+# Replace <PORT> with your server listen port (e.g., 9999)
 
-# Add:
-*/5 * * * * /path/to/paqet.sh --health-check
+# 1. Bypass connection tracking (conntrack) for the connection port. This is essential.
+# This tells the kernel's netfilter to ignore packets on this port for state tracking.
+sudo iptables -t raw -A PREROUTING -p tcp --dport <PORT> -j NOTRACK
+sudo iptables -t raw -A OUTPUT -p tcp --sport <PORT> -j NOTRACK
+
+# 2. Prevent the kernel from sending TCP RST packets that would kill the session.
+# This drops any RST packets the kernel tries to send from the connection port.
+sudo iptables -t mangle -A OUTPUT -p tcp --sport <PORT> --tcp-flags RST RST -j DROP
+
+# An alternative for rule 2 if issues persist:
+sudo iptables -t filter -A INPUT -p tcp --dport <PORT> -j ACCEPT
+sudo iptables -t filter -A OUTPUT -p tcp --sport <PORT> -j ACCEPT
+
+# To make rules persistent across reboots:
+# Debian/Ubuntu: sudo iptables-save > /etc/iptables/rules.v4
+# RHEL/CentOS: sudo service iptables save
 ```
 
-### Manual Configuration
+These rules ensure that only the application handles traffic for the connection port.
 
-Edit config:
-```bash
-sudo nano /etc/paqet/config.json
-sudo systemctl restart paqet
-```
+### 3. Run `paqet`
 
-### View Logs
+Make the downloaded binary executable (`chmod +x ./paqet_linux_amd64`). You will need root privileges to use raw sockets.
 
-```bash
-# Live logs
-sudo journalctl -u paqet -f
-
-# Today's logs
-sudo journalctl -u paqet --since today
-
-# Last 100 lines  
-sudo journalctl -u paqet -n 100
-```
-
-### Testing with Proxychains (Client)
-
-```bash
-# Check your external IP through tunnel
-proxychains4 curl ifconfig.me
-
-# Browse with Firefox through tunnel
-proxychains4 firefox
-
-# Any command
-proxychains4 <command>
-```
-
----
-
-## 📚 Documentation
-
-- **[README.md](README.md)** - This file (overview & quick start)
-- **[PERFORMANCE.md](PERFORMANCE.md)** - Detailed speed tuning guide
-- **[MANAGEMENT.md](MANAGEMENT.md)** - Advanced management tools
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
-
----
-
-## 🔍 Troubleshooting
-
-### Service won't start
+**On the Server:**
+_Place your server configuration file in the same directory as the binary and run:_
 
 ```bash
-sudo ./paqet.sh
-# Choose: 3) Health Check
-# Follow prompts for auto-recovery
+# Make sure to use the binary name you downloaded for your server's OS/Arch.
+sudo ./paqet_linux_amd64 run -c config.yaml
 ```
 
-### Slow performance
+**On the Client:**
+_Place your client configuration file in the same directory as the binary and run:_
 
 ```bash
-# Check current stats
-sudo ./paqet.sh
-# Choose: 4) Performance Stats
-
-# View detailed guide
-cat PERFORMANCE.md
+# Make sure to use the binary name you downloaded for your client's OS/Arch.
+sudo ./paqet_darwin_arm64 run -c config.yaml
 ```
 
-### Connection fails
+### 4. Test the Connection
+
+Once the client and server are running, test the SOCKS5 proxy:
 
 ```bash
-# Run comprehensive test
-sudo ./paqet.sh
-# Choose: 5) Test Tunnel
+# Test with curl using the SOCKS5 proxy
+curl -v https://httpbin.org/ip --proxy socks5h://127.0.0.1:1080
 ```
 
-### Check logs
+This request will be proxied over raw TCP packets to the server, and then forwarded according to the client mode configuration. The output should show your server's public IP address, confirming the connection is working.
+
+## Command-Line Usage
+
+`paqet` is a multi-command application. The primary command is `run`, which starts the proxy, but several utility commands are included to help with configuration and debugging.
+
+The general syntax is:
 
 ```bash
-sudo ./paqet.sh
-# Choose: 2) View Logs
+sudo ./paqet <command> [arguments]
 ```
 
----
+| Command   | Description                                                                      |
+| :-------- | :------------------------------------------------------------------------------- |
+| `run`     | Starts the `paqet` client or server proxy. This is the main operational command. |
+| `secret`  | Generates a new, cryptographically secure secret key.                            |
+| `ping`    | Sends a single test packet to the server to verify connectivity .                |
+| `dump`    | A diagnostic tool similar to `tcpdump` that captures and decodes packets.        |
+| `version` | Prints the application's version information.                                    |
 
-## 🔐 Security
+## Configuration Reference
 
-- ✅ **Audited Code** - No critical vulnerabilities (see code_audit.md)
-- ✅ **Secure Keys** - Cryptographically random (openssl rand)
-- ✅ **AES-256 Encryption** - Industry standard
-- ✅ **Input Validation** - All user inputs sanitized
-- ✅ **HTTPS Only** - Secure downloads  
-- ✅ **No Hardcoded Secrets** - Keys generated per installation
+paqet uses a unified YAML configuration that works for both clients and servers. The `role` field must be explicitly set to either `"client"` or `"server"`.
 
----
+**For complete parameter documentation, see the example files:**
 
-## 📊 Architecture
+- [`example/client.yaml.example`](example/client.yaml.example) - Client configuration reference
+- [`example/server.yaml.example`](example/server.yaml.example) - Server configuration reference
+
+### Encryption Modes
+
+The `transport.kcp.block` parameter determines the encryption method. There are two special modes to disable encryption:
+
+**`none`** (Plaintext with Header)
+No encryption is applied, but a protocol header is still present. The packet format remains compatible with encrypted modes, but the content is plaintext. This helps with protocol compatibility.
+
+**`null`** (Raw Data)
+No encryption and no protocol header, data is transmitted in raw form without any cryptographic framing. This offers the highest performance but is the least secure and most easily identified.
+
+### Critical Configuration Points
+
+**Transport Security:** KCP requires identical keys on client/server (use `secret` command to generate).
+
+**Network Configuration:** Use your actual IP address in `network.ipv4.addr`, not `127.0.0.1`. For servers, `network.ipv4.addr` and `listen.addr` ports must match. For clients, use port `0` in `network.ipv4.addr` to automatically assign a random available port and avoid conflicts.
+
+**TCP Flag Cycling:** The `network.tcp.local_flag` and `network.tcp.remote_flag` arrays cycle through flag combinations to vary traffic patterns. Common patterns: `["PA"]` (standard data), `["S"]` (connection setup), `["A"]` (acknowledgment).
+
+# Architecture & Security Model
+
+### The `pcap` Approach and Firewall Bypass
+
+Understanding _why_ standard firewalls are bypassed is key to using this tool securely.
+
+A normal application uses the OS's TCP/IP stack. When a packet arrives, it travels up the stack where `netfilter` (the backend for `ufw`/`firewalld`) inspects it. If a firewall rule blocks the port, the packet is dropped and never reaches the application.
 
 ```
-┌─────────────────────────────────────────────┐
-│         paqet.sh (Unified Script)           │
-│                                             │
-│  ┌──────────────┐  ┌──────────────────┐    │
-│  │ Installation │  │   Management     │    │
-│  │    Mode      │  │      Mode        │    │
-│  └──────────────┘  └──────────────────┘    │
-│        │                    │               │
-│   ┌────┴────┐         ┌────┴────┐          │
-│   │ Server  │         │ Service │          │
-│   │ Client  │         │ Monitor │          │
-│   └─────────┘         │ Test    │          │
-│                       │ Backup  │          │
-│                       │ Update  │          │
-│                       └─────────┘          │
-└─────────────────────────────────────────────┘
-               │
-               ▼
-     ┌─────────────────┐
-     │ Paqet Binary    │
-     │ (from GitHub)   │
-     └─────────────────┘
-               │
-               ▼
-     ┌─────────────────┐
-     │ Systemd Service │
-     │  (Auto-restart) │
-     └─────────────────┘
+      +------------------------+
+      |   Normal Application   |  <-- Data is received here
+      +------------------------+
+                   ^
+      +------------------------+
+      |    OS TCP/IP Stack     |  <-- Firewall (netfilter) runs here
+      |  (Connection Tracking) |
+      +------------------------+
+                   ^
+      +------------------------+
+      |     Network Driver     |
+      +------------------------+
 ```
 
----
+`paqet` uses `pcap` to hook in at a much lower level. It requests a **copy** of every packet directly from the network driver, _before_ the main OS TCP/IP stack and firewall get to process it.
 
-## 🤝 Contributing
+```
+      +------------------------+
+      |    paqet Application   |  <-- Gets a packet copy immediately
+      +------------------------+
+              ^       \
+ (pcap copy) /         \  (Original packet continues up)
+            /           v
+      +------------------------+
+      |     OS TCP/IP Stack    |  <-- Firewall drops the *original* packet,
+      |  (Connection Tracking) |      but paqet already has its copy.
+      +------------------------+
+                  ^
+      +------------------------+
+      |     Network Driver     |
+      +------------------------+
+```
 
-Contributions are welcome! Please:
+This means a rule like `ufw deny <PORT>` will have no effect on the proxy's operation, as `paqet` receives and processes the packet before `ufw` can block it.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing`)
-3. Commit your changes (`git commit -am 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing`)
-5. Open a Pull Request
+## ⚠️ Security Warning
 
----
+This project is an exploration of low-level networking and carries significant security responsibilities. The KCP transport protocol provides encryption, authentication, and integrity using symmetric encryption with a shared secret key.
 
-## 📄 License
+Security depends entirely on proper key management. Use the `secret` command to generate a strong key that must remain identical on both client and server.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Troubleshooting
 
----
+1.  **Permission Denied:** Ensure you are running with `sudo`.
+2.  **Connection Times Out:**
+    - **Transport Configuration Mismatch:**
+      - **KCP**: Ensure `transport.kcp.key` is exactly identical on client and server
+    - **`iptables` Rules:** Did you apply the firewall rules on the server?
+    - **Incorrect Network Details:** Double-check all IPs, MAC addresses, and interface names.
+    - **Cloud Provider Firewalls:** Ensure your cloud provider's security group allows TCP traffic on your `listen.addr` port.
+    - **NAT/Port Configuration:** For servers, ensure `listen.addr` and `network.ipv4.addr` ports match. For clients, use port `0` in `network.ipv4.addr` for automatic port assignment to avoid conflicts.
+3.  **Proxychains Config Not Found:**
+    - If `proxychains4` fails to find config, run: `sudo ln -sf /etc/proxychains4.conf /etc/proxychains.conf`
+4.  **Packet Loss / Low Speed:**
+    - Try lowering MTU (Default 1300).
+    - Try increasing/decreasing Concurrency (Default 20).
+5.  **Use `ping` and `dump`:** Use `paqet ping -c config.yaml` to test the connection. Use `paqet dump -p <PORT>` on the server to see if packets are arriving.
 
-## 🙏 Credits
+## Performance Tuning (Turbo / Stealth Mode)
 
-- **Paqet Tunnel**: [hanselime/paqet](https://github.com/hanselime/paqet)
-- **KCP Protocol**: [skywind3000/kcp](https://github.com/skywind3000/kcp)
-- **Proxychains**: [rofl0r/proxychains-ng](https://github.com/rofl0r/proxychains-ng)
+The default configuration is highly optimized for restrictive networks (e.g., Iran):
 
----
+| Setting | Default | Purpose |
+| :--- | :--- | :--- |
+| **MTU** | 1300 | Reduces packet loss/fragmentation (Safe for most ISPs) |
+| **Concurrency** | 20 | "Balanced Mode" - Good speed without overwhelming the line |
+| **Overhead** | 15% | `20 Data / 3 Parity`. Maximizes throughput. |
+| **DSCP** | 0 | "Stealth Mode". Avoids ISP traffic shaping targeting high-priority packets. |
+| **Write Delay** | True | Batches small packets for higher download speed. |
 
-## 📞 Support
+To change these, verify your connection with `ping -M do -s <Size> <IP>` before increasing MTU.
 
-- **Issues**: [GitHub Issues](https://github.com/witamin/paqet-automation/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/witamin/paqet-automation/discussions)
+## Acknowledgments
 
----
+This work draws inspiration from the research and implementation in the [gfw_resist_tcp_proxy](https://github.com/GFW-knocker/gfw_resist_tcp_proxy) project by GFW-knocker, which explored the use of raw sockets to circumvent certain forms of network filtering. This project serves as a Go-based exploration of those concepts.
 
-## ⚠️ Disclaimer
+- Uses [pcap](https://github.com/the-tcpdump-group/libpcap) for low-level packet capture and injection
+- Uses [gopacket](https://github.com/gopacket/gopacket) for raw packet crafting and decoding
+- Uses [kcp-go](https://github.com/xtaci/kcp-go) for reliable transport with encryption
+- Uses [smux](https://github.com/xtaci/smux) for connection multiplexing
 
-This tool is provided as-is for educational and testing purposes. Users are responsible for compliance with local laws and regulations. Use at your own risk.
+## License
 
----
-
-**Made with ❤️ for seamless tunneling**
+This project is licensed under the MIT License. See the see [LICENSE](LICENSE) file for details.

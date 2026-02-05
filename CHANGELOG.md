@@ -5,6 +5,22 @@ All notable changes to the Paqet Tunnel Automation Project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-05
+
+### Fixed (Critical)
+- **Oracle Cloud Installation Hang**: Added `DEBIAN_FRONTEND=noninteractive` and `debconf-set-selections` to prevent `iptables-persistent` from hanging.
+- **Binary Extraction**: Fixed logic to handle variable binary names in tarballs (e.g. `paqet_linux_arm64`).
+- **Systemd Service**: Corrected `ExecStart` syntax to use `run -c` instead of invalid flags.
+- **Configuration Format**: Switching from invalid JSON generation to correct nested YAML structure.
+- **Proxychains Path**: Added symlink creation `/etc/proxychains.conf` -> `/etc/proxychains4.conf`.
+
+### Changed (Performance Tuning)
+- **Default MTU**: Lowered to **1300** (from 1400) for maximum stability (5% loss vs 25% loss).
+- **Default Concurrency**: Set to **20** (Balanced Mode).
+- **Default Overhead**: Optimized to **15%** (20 Data / 3 Parity) for higher throughput.
+- **Default DSCP**: Set to **0** (Stealth Mode) to avoid ISP traffic shaping.
+- **Write Delay**: Enabled by default to improve batching and download speed.
+
 ## [1.0.0] - 2026-02-05
 
 ### Added
