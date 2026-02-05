@@ -365,7 +365,7 @@ EOF
     # So I must export KEY="$SECURE_KEY"
     
     export IFACE="$DEFAULT_IFACE"
-    export LOCAL_IP="$LOCAL_IP"
+    export LOCAL_IP="$LOCAL_IP":0
     export ROUTER_MAC="$ROUTER_MAC"
     
     # Empty client-specific vars to be safe
