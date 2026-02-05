@@ -1158,8 +1158,16 @@ configure_port_forwarding() {
     PARITY=$(grep "parityshard:" "$CONFIG_FILE" | awk '{print $2}')
     DATA=$(grep "data_shard:" "$CONFIG_FILE" | awk '{print $2}')
     
+    # Read Network Settings (Crucial!)
+    IFACE=$(grep "interface:" "$CONFIG_FILE" | awk '{print $2}' | tr -d '"')
+    # Use robust grep for nested values
+    LOCAL_IP=$(grep -A3 "network:" "$CONFIG_FILE" | grep "addr:" | awk '{print $2}' | tr -d '"')
+    ROUTER_MAC=$(grep -A3 "network:" "$CONFIG_FILE" | grep "router_mac:" | awk '{print $2}' | tr -d '"')
+
     # Read SOCKS5 listen address (preserve user setting)
-    SOCKS_LISTEN=$(grep -A1 "socks5:" "$CONFIG_FILE" | grep "listen:" | awk '{print $2}' | tr -d '"')
+    # The previous logic was buggy if multiple listen lines existed.
+    # Looking for the listen under socks5 specifically.
+    SOCKS_LISTEN=$(sed -n '/socks5:/,/forward:/p' "$CONFIG_FILE" | grep "listen:" | head -n 1 | awk '{print $2}' | tr -d '"')
     [ -z "$SOCKS_LISTEN" ] && SOCKS_LISTEN="0.0.0.0:1080"
     
     # Default values if missing
@@ -1178,6 +1186,12 @@ log:
 
 server:
   addr: "${SERVER_ADDR}"
+
+network:
+  interface: "${IFACE}"
+  ipv4:
+    addr: "${LOCAL_IP}"
+    router_mac: "${ROUTER_MAC}"
 
 # SOCKS5 Proxy
 socks5:
