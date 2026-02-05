@@ -215,32 +215,35 @@ EOF
     # Generate secret and get IP
     SECRET_KEY=$(openssl rand -base64 16)
     SERVER_IP=$(curl -s -4 ifconfig.me || curl -s -4 icanhazip.com)
+    LOCAL_IP=$(ip -4 addr show "$DEFAULT_IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
     
     # Create config
     mkdir -p /etc/paqet
     
     cat > /etc/paqet/config.yaml <<EOF
-mode: server
-listen: ":443"
-secret: ${SECRET_KEY}
-iface: ${DEFAULT_IFACE}
-gateway_mac: ${ROUTER_MAC}
-mtu: 1500
-kcp:
-  mode: fast3
+role: "server"
+
+log:
+  level: "info"
+
+listen:
+  addr: ":443"
+
+network:
+  interface: "${DEFAULT_IFACE}"
+  ipv4:
+    addr: "${LOCAL_IP}:443"
+    router_mac: "${ROUTER_MAC}"
+
+transport:
+  protocol: "kcp"
   conn: 16
-  mtu: 1400
-  sndwnd: 8192
-  rcvwnd: 8192
-  datashard: 10
-  parityshard: 3
-  dscp: 46
-  nocongestion: 1
-  acknodelay: true
-  nodelay: 1
-  interval: 10
-  resend: 2
-  nc: 1
+  kcp:
+    mode: "fast3"
+    mtu: 1400
+    rcvwnd: 8192
+    sndwnd: 8192
+    key: "${SECRET_KEY}"
 EOF
     
     # Create systemd service
