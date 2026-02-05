@@ -452,9 +452,10 @@ install_client() {
             port=$(echo "$port" | tr -cd '0-9')
             if [ -z "$port" ]; then continue; fi
             
-            # Standard Config Format (Quoted)
+            # Correct Config Format (from g3ntrix repo)
             FORWARD_RULES+=("  - listen: \"0.0.0.0:${port}\"")
-            FORWARD_RULES+=("    remote: \"127.0.0.1:${port}\"")
+            FORWARD_RULES+=("    target: \"127.0.0.1:${port}\"")
+            FORWARD_RULES+=("    protocol: \"tcp\"")
             setup_firewall_port "$port" &>/dev/null
         done
     fi
@@ -488,12 +489,7 @@ install_client() {
     
     echo -e "${GREEN}✓ Configuration generated${NC}"
     
-    # DEBUG: Show config content to user
-    echo -e "${YELLOW}--- DEBUG: GENERATED CONFIG ---${NC}"
-    cat /etc/paqet/config.yaml
-    echo -e "${YELLOW}-------------------------------${NC}"
-    
-    # Create service
+    # Create service (Debug removed)
     chmod 644 /etc/paqet/config.yaml
     
     # Fetch latest release
