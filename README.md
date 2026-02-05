@@ -31,6 +31,14 @@ While `paqet` includes built-in encryption via KCP, it is more complex to config
 (e.g. curl)        (localhost:1080)        (Internet)          (Public IP:PORT)     (e.g. https://httpbin.org)
 ```
 
+## Features
+
+- **Unified Installer**: Single script (`paqet.sh`) for both Server and Client roles.
+- **Robust Network Detection**: Automatically detects Interface, Public IP, and Gateway MAC (with ARP fallback).
+- **Firewall Integration**: Automatically opens ports in `iptables` and `ufw` for tunnels AND V2Ray/X-UI services.
+- **Auto-Tuning**: Applies sysctl optimizations (BBR, buffer sizing) for high-latency networks.
+- **Stability**: Tuned default KCP settings (`conn: 4`, `fast3`) for reliable connections on unstable links.
+
 The system operates in three layers: raw TCP packet injection, encrypted transport (KCP), and application-level connection multiplexing.
 
 KCP provides reliable, encrypted communication optimized for high-loss or unpredictable networks, using aggressive retransmission, forward error correction, and symmetric encryption with a shared secret key. It is especially well-suited for real-time applications and gaming where low latency are critical.
