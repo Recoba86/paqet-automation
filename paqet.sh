@@ -456,7 +456,8 @@ server: "${SERVER_IP}:443"
 secret: ${SECRET_KEY}
 iface: ${DEFAULT_IFACE}
 gateway_mac: ${ROUTER_MAC}
-socks5: 0.0.0.0:1080
+socks5:
+  - listen: "0.0.0.0:1080"
 mtu: 1500
 kcp:
   mode: fast3
