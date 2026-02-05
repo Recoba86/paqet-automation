@@ -5,6 +5,25 @@ All notable changes to the Paqet Tunnel Automation Project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-05
+
+### Added (New Features)
+- **Port Forwarding (Option 6)**: Multi-port forwarding support (e.g., forward 443, 2053, 8443 on Iran server to Foreign server). Preserves existing SOCKS5 settings.
+- **Iran Network Optimizer**: Integrated DNS Finder and Repo Mirror detection to fix installation hangs and improve connection quality in Iran.
+- **Tunnel Speed Test (Option 8)**: Dedicated 100MB download test via Cloudflare CDN to measure real-world tunnel throughput.
+- **Configuration Editor (Option 5)**: interactive menu to modify MTU, Parity, Connections, and Mode without manual file editing.
+- **Advanced Connection Test**: Enhanced diagnostics including service status, listening ports, ping, and HTTP proxy check.
+- **Uninstaller (Option 11)**: Complete cleanup tool that removes binaries, configs, services, and reverts system optimizations.
+
+### Fixed
+- **Installation Hangs**: Calls `run_iran_optimizations` *before* package installation to prevent `apt-get` timeouts in Iran.
+- **Config Overwrite Protection**: Port Forwarding setup now dynamically reads and preserves the custom SOCKS5 listener address.
+- **Dependency Missing**: Added `bc` to dependency list for accurate speed test calculations.
+
+### Changed
+- **Menu Layout**: Reorganized Management Menu for better logical grouping (Service, Configuration, Monitoring, Maintenance).
+- **Speed Test Accuracy**: Increased test file size to 100MB for more stable speed measurement.
+
 ## [1.1.0] - 2026-02-05
 
 ### Fixed (Critical)

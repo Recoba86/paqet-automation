@@ -260,6 +260,39 @@ sudo ./paqet <command> [arguments]
 | `dump`    | A diagnostic tool similar to `tcpdump` that captures and decodes packets.        |
 | `version` | Prints the application's version information.                                    |
 
+## Advanced Features (New in v1.2.0)
+
+### 🚀 Iran Network Optimizer
+Automatically finds the best settings for Iran's restricted network environment:
+1. **DNS Finder**: Tests thousands of DNS servers to find the lowest latency/packet loss.
+2. **Mirror Selector**: Finds the fastest local repo mirrors to fix slow `apt-get` speeds.
+*Runs automatically during installation or manually via `run_iran_optimizations`.*
+
+### 🛠️ Configuration Editor (Menu Option 5)
+Change critical settings without touching YAML files:
+- **MTU**: Adjust packet size (default 1300).
+- **Parity**: Change redundancy level (3/5/10).
+- **Mode**: Switch between `fast3`, `normal`, etc.
+
+### 🛣️ Port Forwarding (Menu Option 6)
+Easily forward traffic from your local Iran server to the foreign server:
+1. Select "Port Forwarding" from the menu.
+2. Enter ports: `2053, 2083, 8443`.
+3. The script verifies permissions, updates `config.yaml`, and opens the firewall.
+*Preserves your custom SOCKS5 port settings.*
+
+### ⚡ Tunnel Speed Test (Menu Option 8)
+Accurately measure your tunnel's actual throughput:
+- Downloads a **100MB** test file from Cloudflare CDN through the tunnel.
+- Calculates real-time speed in Mbps.
+- Acts as a stability stress-test.
+
+### 🗑️ Smart Uninstaller (Menu Option 11)
+Cleanly removes everything:
+- Stops and disables systemd services.
+- Removes binary and config files.
+- **Reverts** system network optimizations (sysctl) to default.
+
 ## Configuration Reference
 
 paqet uses a unified YAML configuration that works for both clients and servers. The `role` field must be explicitly set to either `"client"` or `"server"`.
