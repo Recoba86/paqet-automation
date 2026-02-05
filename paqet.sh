@@ -394,7 +394,7 @@ EOF
             fi
         done
     fi
-    fi
+
     # Robust Public IP Detection (Filters out HTML/Errors)
     SERVER_IP=""
     for url in "https://api.ipify.org" "https://ifconfig.me" "https://icanhazip.com" "http://checkip.amazonaws.com"; do
