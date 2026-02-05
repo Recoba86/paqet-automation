@@ -471,27 +471,6 @@ install_client() {
     DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev git build-essential bc &>/dev/null
     echo -e "${GREEN}✓ Tools installed${NC}"
     
-    # ... (skipping binary download logic) ...
-    
-    # Create config
-    LOCAL_IP=$(ip -4 addr show "$DEFAULT_IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
-    
-    # Set globals for write_paqet_config
-    export ROLE="client"
-    export SERVER_ADDR="$SERVER_IP:443"
-    export KEY="$SECRET_KEY"
-    export IFACE="$DEFAULT_IFACE"
-    export LOCAL_IP="$LOCAL_IP":0
-    export ROUTER_MAC="$ROUTER_MAC"
-    export SOCKS_LISTEN="0.0.0.0:1080"
-    
-    write_paqet_config
-    
-    echo -e "${GREEN}✓ Configuration generated${NC}"
-    
-    # Create service (Debug removed)
-    chmod 644 /etc/paqet/config.yaml
-    
     # Fetch latest release
     echo -e "${YELLOW}[2/10] Fetching latest paqet release from GitHub...${NC}"
     GITHUB_API="https://api.github.com/repos/hanselime/paqet/releases/latest"
@@ -527,8 +506,6 @@ install_client() {
     
     if [ -z "$DOWNLOAD_URL" ]; then
          echo -e "${RED}Could not find download URL for linux-${ARCH_NAME}${NC}"
-         echo -e "Debug Info: Available assets:"
-         echo "$RELEASE_INFO" | jq -r '.assets[].name'
          exit 1
     fi
     
@@ -549,20 +526,32 @@ install_client() {
 
     chmod +x "$EXTRACTED_BINARY"
     mv "$EXTRACTED_BINARY" /usr/local/bin/paqet
-    rm -f /tmp/paqet.tar.gz
-    echo -e "${GREEN}✓ Downloaded and installed${NC}"
+    echo -e "${GREEN}✓ Paqet binary installed to /usr/local/bin/paqet${NC}"
     
-    # Fix libpcap
-    echo -e "${YELLOW}[6/10] Fixing libpcap dependency...${NC}"
-    ln -sf /usr/lib/x86_64-linux-gnu/libpcap.so /usr/lib/x86_64-linux-gnu/libpcap.so.0.8 2>/dev/null || \
-    ln -sf /usr/lib/aarch64-linux-gnu/libpcap.so /usr/lib/aarch64-linux-gnu/libpcap.so.0.8 2>/dev/null || true
-    ldconfig
-    echo -e "${GREEN}✓ libpcap configured${NC}"
+    # Install Proxychains
+    echo -e "${YELLOW}[6/10] Installing Proxychains...${NC}"
+    if apt-cache show proxychains4 &>/dev/null; then
+        apt-get install -y proxychains4 &>/dev/null
+    else
+        # Compile from source if not in repo
+        echo -e "${YELLOW}Compiling proxychains from source...${NC}"
+        if [ ! -d "/tmp/proxychains-ng" ]; then
+            git clone --depth 1 https://github.com/rofl0r/proxychains-ng.git /tmp/proxychains-ng &>/dev/null
+        fi
     
-    # Network discovery
+        cd /tmp/proxychains-ng
+        ./configure --prefix=/usr --sysconfdir=/etc &>/dev/null
+        make &>/dev/null
+        make install &>/dev/null
+        make install-config &>/dev/null
+        cd - &>/dev/null
+        rm -rf /tmp/proxychains-ng
+    fi
+    echo -e "${GREEN}✓ Proxychains installed${NC}"
+    
+    # Network Discovery (Moved here to ensure IFACE is sets)
     echo -e "${YELLOW}[7/10] Discovering network configuration...${NC}"
     
-    # Robust detection logic (same as server)
     detect_interface() {
         local iface
         iface=$(ip -4 route show default | awk '{print $5}' | head -n 1)
@@ -577,8 +566,7 @@ install_client() {
     
     if [ -z "$DEFAULT_IFACE" ]; then
         echo -e "${RED}Could not auto-detect network interface.${NC}"
-        echo -e "${YELLOW}Please enter your network interface name (e.g., eth0, ens3, venet0):${NC}"
-        read -p "> " DEFAULT_IFACE
+        read -p "Enter network interface (e.g. eth0): " DEFAULT_IFACE
     fi
     
     if [ -z "$DEFAULT_IFACE" ]; then
