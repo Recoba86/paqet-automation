@@ -124,7 +124,7 @@ network:
 
 transport:
   protocol: "kcp"
-  conn: 20
+  conn: 4
   kcp:
     mode: "fast3"
     mtu: 1300
@@ -151,9 +151,11 @@ socks5:
 forward:
 EOF
         # Append Forward Rules
-        for rule in "${FORWARD_RULES[@]}"; do
-            echo "$rule" >> "$file"
-        done
+        if [ ${#FORWARD_RULES[@]} -gt 0 ]; then
+             for rule in "${FORWARD_RULES[@]}"; do
+                echo "$rule" >> "$file"
+             done
+        fi
     fi
 }
 
@@ -353,6 +355,11 @@ EOF
     iptables -t raw -A OUTPUT -p udp --sport 443 -j NOTRACK
     iptables -t mangle -A POSTROUTING -p tcp --tcp-flags RST RST -j DROP
     
+    # Open Service Ports
+    for port in "${SERVICE_PORTS[@]}"; do
+        setup_firewall_port "$port" &>/dev/null
+    done
+    
     netfilter-persistent save &>/dev/null || iptables-save > /etc/iptables/rules.v4
     
     echo -e "${GREEN}✓ Optimizations applied${NC}"
@@ -371,6 +378,21 @@ EOF
     else
         SECRET_KEY=$(openssl rand -base64 16)
         echo -e "${GREEN}✓ Generated new key: $SECRET_KEY${NC}"
+    fi
+
+    # Prompt for Service Ports (V2Ray/X-UI) - To Open Firewall
+    echo -e "${YELLOW}Enter the ports your V2Ray/X-UI services run on (comma-separated, e.g. 2020,8443):${NC}"
+    echo -e "${CYAN}(Press Enter to skip if sure)${NC}"
+    read -r input_ports
+    SERVICE_PORTS=()
+    if [ -n "$input_ports" ]; then
+        IFS=',' read -ra PORT_LIST <<< "$input_ports"
+        for port in "${PORT_LIST[@]}"; do
+            port=$(echo "$port" | tr -cd '0-9')
+            if [ -n "$port" ]; then
+                SERVICE_PORTS+=("$port")
+            fi
+        done
     fi
     SERVER_IP=$(curl -s -4 ifconfig.me || curl -s -4 icanhazip.com)
     LOCAL_IP=$(ip -4 addr show "$DEFAULT_IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
@@ -720,7 +742,7 @@ netfilter-persistent save &>/dev/null || iptables-save > /etc/iptables/rules.v4
     fi
     
     cat > /etc/proxychains4.conf <<-EOF
-strict_chain
+dynamic_chain
 proxy_dns
 remote_dns_subnet 224
 tcp_read_time_out 15000

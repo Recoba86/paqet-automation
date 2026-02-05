@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Firewall**: Implemented "Clean & Add" logic to prevent duplicate iptables rules on re-installation.
 - **Dependencies**: Added `lsof` for better diagnostics.
 - **Reliability**: Confirmed and enforced strict `IP:Port` formatting for server bind addresses, fixing systemd startup failures.
+- **Firewall**: Added "Service Ports" prompt to Server Installation to automatically open VLESS/X-UI ports (e.g., 2020, 8443) in iptables/ufw.
+- **Stability**: Tuned default KCP `conn` from 20 to 4 to reduce packet loss and "connection lost" errors.
 
 ## [1.2.6] - 2026-02-05
 ### Fixed
