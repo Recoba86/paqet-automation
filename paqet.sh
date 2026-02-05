@@ -481,12 +481,12 @@ transport:
   conn: 16
   kcp:
     mode: "fast3"
-    mtu: 1280
+    mtu: 1300
     rcvwnd: 16384
     sndwnd: 16384
     datashard: 20
     parityshard: 3
-    dscp: 46
+    dscp: 0
     nocongestion: 1
     acknodelay: true
     nodelay: 1
