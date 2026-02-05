@@ -1158,21 +1158,39 @@ configure_port_forwarding() {
     PARITY=$(grep "parityshard:" "$CONFIG_FILE" | awk '{print $2}')
     DATA=$(grep "data_shard:" "$CONFIG_FILE" | awk '{print $2}')
     
-    # Read Network Settings (More Robust Parsing)
-    # 1. Interface (Unique key in top-level usually)
+    # Read Network Settings (With SELF-HEALING)
+    # 1. Interface
     IFACE=$(grep "interface:" "$CONFIG_FILE" | head -n 1 | awk '{print $2}' | tr -d '"')
     
-    # 2. Local IP (Reliable grep for nested structure)
-    # We look for the addr inside the network->ipv4 block
+    # Self-Healing: If missing, re-detect
+    if [ -z "$IFACE" ]; then
+        echo -e "${YELLOW}Warning: Network config missing. Auto-detecting...${NC}"
+        IFACE=$(ip -4 route show default | awk '{print $5}' | head -n 1)
+        [ -z "$IFACE" ] && IFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -v "lo" | head -n 1)
+    fi
+
+    # 2. Local IP
     LOCAL_IP=$(sed -n '/network:/,/server:/p' "$CONFIG_FILE" | grep "addr:" | head -n 1 | awk '{print $2}' | tr -d '"')
+    if [ -z "$LOCAL_IP" ] && [ -n "$IFACE" ]; then
+         LOCAL_IP=$(ip -4 addr show "$IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+    fi
     
-    # 3. Router MAC (Unique)
+    # 3. Router MAC
     ROUTER_MAC=$(grep "router_mac:" "$CONFIG_FILE" | head -n 1 | awk '{print $2}' | tr -d '"')
+    if [ -z "$ROUTER_MAC" ]; then
+         GATEWAY=$(ip route | grep default | awk '{print $3}' | head -n 1)
+         ROUTER_MAC=$(ip neighbor show "$GATEWAY" | awk '{print $5}' | head -n 1)
+         [ -z "$ROUTER_MAC" ] && ROUTER_MAC="00:00:00:00:00:00"
+    fi
     
     # 4. SOCKS Listen
     # Extract value inside quotes: listen: "0.0.0.0:1080"
+    # Logic: Find line with socks5, look for listen in next few lines.
     SOCKS_LISTEN=$(grep -A5 "socks5:" "$CONFIG_FILE" | grep "listen:" | head -n 1 | awk -F'"' '{print $2}')
-    [ -z "$SOCKS_LISTEN" ] && SOCKS_LISTEN="0.0.0.0:1080"
+    # If empty or obviously wrong (contains keys), reset to default
+    if [ -z "$SOCKS_LISTEN" ] || [[ "$SOCKS_LISTEN" == *"listen"* ]]; then
+        SOCKS_LISTEN="0.0.0.0:1080"
+    fi
     
     # Default values if missing
     [ -z "$CONN" ] && CONN=20
