@@ -308,6 +308,13 @@ EOF
     
     sysctl -p &>/dev/null
     
+    # Configure Firewall (Force Open UDP 443)
+    echo -e "${YELLOW}Configuring firewall...${NC}"
+    if command -v ufw &> /dev/null; then
+        ufw allow 443/udp &>/dev/null || true
+    fi
+    iptables -I INPUT -p udp --dport 443 -j ACCEPT
+    
     iptables -t raw -A PREROUTING -p udp --dport 443 -j NOTRACK
     iptables -t raw -A OUTPUT -p udp --sport 443 -j NOTRACK
     iptables -t mangle -A POSTROUTING -p tcp --tcp-flags RST RST -j DROP
