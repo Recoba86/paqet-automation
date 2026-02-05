@@ -513,11 +513,12 @@ EOF
             git clone --depth 1 https://github.com/rofl0r/proxychains-ng.git /tmp/proxychains-ng &>/dev/null
         fi
     
-    cd /tmp/proxychains-ng
-    ./configure --prefix=/usr --sysconfdir=/etc &>/dev/null
-    make &>/dev/null
-    make install &>/dev/null
-    cd - &>/dev/null
+        cd /tmp/proxychains-ng
+        ./configure --prefix=/usr --sysconfdir=/etc &>/dev/null
+        make &>/dev/null
+        make install &>/dev/null
+        cd - &>/dev/null
+    fi
     
     cat > /etc/proxychains4.conf <<EOF
 strict_chain
