@@ -126,12 +126,14 @@ transport:
   protocol: "kcp"
   conn: 4
   kcp:
-    mode: "fast3"
+    mode: "normal"
     mtu: 1300
-    snd_wnd: 2048
-    rcv_wnd: 2048
-    data_shard: 10
-    parity_shard: 3
+    snd_wnd: 1280
+    rcv_wnd: 1280
+    data_shard: 0
+    parity_shard: 0
+    nocongestion: 1
+    acknodelay: true
     dscp: 0
     key: "$KEY"
 EOF
