@@ -1501,11 +1501,18 @@ edit_config() {
                 echo -ne "Enter new Parity Shards (e.g. 1, 3, 5): "
                 read -r new_val
                 if [[ "$new_val" =~ ^[0-9]+$ ]]; then
-                    # Robust replacement: handle both key styles
+                    # Robust replacement: handle both key styles OR missing key
                     if grep -q "parity_shard:" "$CONFIG_FILE"; then
                         sed -i "s/parity_shard: .*/parity_shard: $new_val/" "$CONFIG_FILE"
-                    else
+                    elif grep -q "parityshard:" "$CONFIG_FILE"; then
                         sed -i "s/parityshard: .*/parityshard: $new_val/" "$CONFIG_FILE"
+                    else
+                        # Key missing? Insert it after 'data_shard' or 'mtu'
+                        if grep -q "data_shard:" "$CONFIG_FILE"; then
+                            sed -i "/data_shard:/a \    parity_shard: $new_val" "$CONFIG_FILE"
+                        elif grep -q "mtu:" "$CONFIG_FILE"; then
+                            sed -i "/mtu:/a \    parity_shard: $new_val" "$CONFIG_FILE"
+                        fi
                     fi
                     echo -e "${GREEN}✓ Updated Parity${NC}"
                 fi
