@@ -62,6 +62,27 @@ detect_interface() {
     echo "$iface"
 }
 
+# Robust Gateway MAC Detection (from reference)
+detect_gateway_mac() {
+    local gateway_ip=$1
+    if [ -n "$gateway_ip" ]; then
+        # Ping to populate neighbor cache
+        ping -c 1 -W 1 "$gateway_ip" >/dev/null 2>&1 || true
+        
+        # Try ip neigh first (modern method)
+        local mac=$(ip neigh show "$gateway_ip" 2>/dev/null | grep -oE '([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}' | head -1)
+        
+        # Fallback to arp if ip neigh fails
+        if [ -z "$mac" ] && command -v arp >/dev/null 2>&1; then
+            mac=$(arp -n "$gateway_ip" 2>/dev/null | grep -oE '([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}' | head -1)
+        fi
+        
+        # Final fallback
+        [ -z "$mac" ] && mac="00:00:00:00:00:00"
+        echo "$mac"
+    fi
+}
+
 # Secure Config Generator (Revised)
 write_paqet_config() {
     local file="/etc/paqet/config.yaml"
@@ -288,9 +309,7 @@ install_server() {
     fi
     
     ping -c 2 "$GATEWAY" &>/dev/null || true
-    ROUTER_MAC=$(ip neighbor show "$GATEWAY" | awk '{print $5}' | head -n 1)
-    # MAC fallback for some VPS (virtio)
-    [ -z "$ROUTER_MAC" ] && ROUTER_MAC="00:00:00:00:00:00"
+    ROUTER_MAC=$(detect_gateway_mac "$GATEWAY")
     
     echo -e "${GREEN}✓ Default Interface: ${DEFAULT_IFACE}${NC}"
     echo -e "${GREEN}✓ Gateway: ${GATEWAY}${NC}"
@@ -609,8 +628,7 @@ install_client() {
     fi
     
     ping -c 2 "$GATEWAY" &>/dev/null || true
-    ROUTER_MAC=$(ip neighbor show "$GATEWAY" | awk '{print $5}' | head -n 1)
-    [ -z "$ROUTER_MAC" ] && ROUTER_MAC="00:00:00:00:00:00"
+    ROUTER_MAC=$(detect_gateway_mac "$GATEWAY")
     
     echo -e "${GREEN}✓ Default Interface: ${DEFAULT_IFACE}${NC}"
     echo -e "${GREEN}✓ Gateway: ${GATEWAY}${NC}"
