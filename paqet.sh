@@ -448,32 +448,36 @@ EOF
     echo -e "${GREEN}✓ Optimizations applied${NC}"
     
     # Create config
+    LOCAL_IP=$(ip -4 addr show "$DEFAULT_IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
     mkdir -p /etc/paqet
     
     cat > /etc/paqet/config.yaml <<EOF
-mode: client
-server: "${SERVER_IP}:443"
-secret: ${SECRET_KEY}
-iface: ${DEFAULT_IFACE}
-gateway_mac: ${ROUTER_MAC}
+role: "client"
+
+log:
+  level: "info"
+
+server:
+  addr: "${SERVER_IP}:443"
+
+network:
+  interface: "${DEFAULT_IFACE}"
+  ipv4:
+    addr: "${LOCAL_IP}:0"
+    router_mac: "${ROUTER_MAC}"
+
+transport:
+  protocol: "kcp"
+  conn: 16
+  kcp:
+    mode: "fast3"
+    mtu: 1400
+    rcvwnd: 8192
+    sndwnd: 8192
+    key: "${SECRET_KEY}"
+
 socks5:
   - listen: "0.0.0.0:1080"
-mtu: 1500
-kcp:
-  mode: fast3
-  conn: 16
-  mtu: 1400
-  sndwnd: 8192
-  rcvwnd: 8192
-  datashard: 10
-  parityshard: 3
-  dscp: 46
-  nocongestion: 1
-  acknodelay: true
-  nodelay: 1
-  interval: 10
-  resend: 2
-  nc: 1
 EOF
     
     # Install proxychains
@@ -768,7 +772,7 @@ test_tunnel() {
     # Test 3: Config
     echo -e "${YELLOW}[3/4] Configuration${NC}"
     if [ -f "/etc/paqet/config.yaml" ]; then
-        echo -e "${GREEN}✅ PASS - Valid JSON${NC}"
+        echo -e "${GREEN}✅ PASS - Valid YAML${NC}"
     else
         echo -e "${RED}❌ FAIL - Invalid config${NC}"
     fi
