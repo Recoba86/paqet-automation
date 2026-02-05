@@ -892,14 +892,14 @@ run_speed_test() {
         return
     fi
     
-    echo -e "${YELLOW}Starting download test (25MB)...${NC}"
+    echo -e "${YELLOW}Starting download test (100MB)...${NC}"
     echo -e "Target: Cloudflare CDN (via Tunnel)"
     echo ""
     
     # Run speed test
-    # We use a 25MB file which is good for average connections
+    # We use a 100MB file for more accuracy
     TIME_START=$(date +%s.%N)
-    if proxychains4 -q curl -L -o /dev/null --progress-bar -w "%{speed_download}" http://speed.cloudflare.com/__down?bytes=25000000 > /tmp/speedtest_result; then
+    if proxychains4 -q curl -L -o /dev/null --progress-bar -w "%{speed_download}" http://speed.cloudflare.com/__down?bytes=100000000 > /tmp/speedtest_result; then
         TIME_END=$(date +%s.%N)
         SPEED_BPS=$(cat /tmp/speedtest_result)
         
