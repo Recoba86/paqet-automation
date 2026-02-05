@@ -175,16 +175,40 @@ install_server() {
     
     # Network discovery
     echo -e "${YELLOW}[7/9] Discovering network configuration...${NC}"
-    DEFAULT_IFACE=$(ip route | grep default | awk '{print $5}' | head -n 1)
+    
+    # Robust detection logic
+    detect_interface() {
+        local iface
+        iface=$(ip -4 route show default | awk '{print $5}' | head -n 1)
+        # Fallback 1: First non-loopback interface
+        if [ -z "$iface" ]; then
+             iface=$(ip -o link show | awk -F': ' '{print $2}' | grep -v "lo" | head -n 1)
+        fi
+        echo "$iface"
+    }
+    
+    DEFAULT_IFACE=$(detect_interface)
     GATEWAY=$(ip route | grep default | awk '{print $3}' | head -n 1)
     
-    if [ -z "$DEFAULT_IFACE" ] || [ -z "$GATEWAY" ]; then
-        echo -e "${RED}Failed to detect network interface or gateway${NC}"
-        exit 1
+    # Prompt if failed
+    if [ -z "$DEFAULT_IFACE" ]; then
+        echo -e "${RED}Could not auto-detect network interface.${NC}"
+        echo -e "${YELLOW}Please enter your network interface name (e.g., eth0, ens3, venet0):${NC}"
+        read -p "> " DEFAULT_IFACE
+    else
+        echo -e "Detected Interface: ${CYAN}$DEFAULT_IFACE${NC}"
+        # Optional: Ask to confirm? No, keep it automated unless validation fails.
+    fi
+    
+    if [ -z "$DEFAULT_IFACE" ]; then
+         echo -e "${RED}Interface is required!${NC}"
+         exit 1
     fi
     
     ping -c 2 "$GATEWAY" &>/dev/null || true
     ROUTER_MAC=$(ip neighbor show "$GATEWAY" | awk '{print $5}' | head -n 1)
+    # MAC fallback for some VPS (virtio)
+    [ -z "$ROUTER_MAC" ] && ROUTER_MAC="00:00:00:00:00:00"
     
     echo -e "${GREEN}✓ Default Interface: ${DEFAULT_IFACE}${NC}"
     echo -e "${GREEN}✓ Gateway: ${GATEWAY}${NC}"
@@ -420,16 +444,34 @@ install_client() {
     
     # Network discovery
     echo -e "${YELLOW}[7/10] Discovering network configuration...${NC}"
-    DEFAULT_IFACE=$(ip route | grep default | awk '{print $5}' | head -n 1)
+    
+    # Robust detection logic (same as server)
+    detect_interface() {
+        local iface
+        iface=$(ip -4 route show default | awk '{print $5}' | head -n 1)
+        if [ -z "$iface" ]; then
+             iface=$(ip -o link show | awk -F': ' '{print $2}' | grep -v "lo" | head -n 1)
+        fi
+        echo "$iface"
+    }
+    
+    DEFAULT_IFACE=$(detect_interface)
     GATEWAY=$(ip route | grep default | awk '{print $3}' | head -n 1)
     
-    if [ -z "$DEFAULT_IFACE" ] || [ -z "$GATEWAY" ]; then
-        echo -e "${RED}Failed to detect network interface or gateway${NC}"
+    if [ -z "$DEFAULT_IFACE" ]; then
+        echo -e "${RED}Could not auto-detect network interface.${NC}"
+        echo -e "${YELLOW}Please enter your network interface name (e.g., eth0, ens3, venet0):${NC}"
+        read -p "> " DEFAULT_IFACE
+    fi
+    
+    if [ -z "$DEFAULT_IFACE" ]; then
+        echo -e "${RED}Interface is required!${NC}"
         exit 1
     fi
     
     ping -c 2 "$GATEWAY" &>/dev/null || true
     ROUTER_MAC=$(ip neighbor show "$GATEWAY" | awk '{print $5}' | head -n 1)
+    [ -z "$ROUTER_MAC" ] && ROUTER_MAC="00:00:00:00:00:00"
     
     echo -e "${GREEN}✓ Default Interface: ${DEFAULT_IFACE}${NC}"
     echo -e "${GREEN}✓ Gateway: ${GATEWAY}${NC}"
