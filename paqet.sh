@@ -247,7 +247,7 @@ transport:
     rcvwnd: 16384
     sndwnd: 16384
     datashard: 20
-    parityshard: 4
+    parityshard: 3
     dscp: 46
     nocongestion: 1
     acknodelay: true
