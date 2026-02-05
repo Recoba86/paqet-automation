@@ -804,23 +804,68 @@ test_tunnel() {
         echo -e "${RED}❌ FAIL - Invalid config${NC}"
     fi
     
-    # Test 4: Connection (client only)
+    read
+}
+
+# Test connection
+test_tunnel() {
+    show_header
+    echo -e "${CYAN}━━━ Connection Test ━━━${NC}"
+    echo ""
+    
+    # 1. Check Service
+    if systemctl is-active --quiet paqet; then
+        echo -e "${GREEN}✓ Service is running${NC}"
+    else
+        echo -e "${RED}✗ Service is NOT running${NC}"
+        echo -e "${YELLOW}  Try starting it with Option 1${NC}"
+        read -r
+        return
+    fi
+    
+    # 2. Check Port 1080
+    if ss -tlnp | grep -q ":1080" || netstat -tlnp 2>/dev/null | grep -q ":1080"; then
+        echo -e "${GREEN}✓ Port 1080 is listening${NC}"
+    else
+        echo -e "${RED}✗ Port 1080 is NOT listening${NC}"
+        echo -e "${YELLOW}  Check logs for errors${NC}"
+    fi
+
+    # 3. Check Server Reachability (Client Only)
+    MODE=$(get_mode)
     if [ "$MODE" = "client" ]; then
-        echo -e "${YELLOW}[4/4] Connection Test${NC}"
+        SERVER_ADDR=$(grep "addr:" /etc/paqet/config.yaml | head -n 1 | awk '{print $2}' | tr -d '"')
+        SERVER_IP=$(echo "$SERVER_ADDR" | cut -d':' -f1)
+        
+        echo -ne "Pinging server ($SERVER_IP)... "
+        if ping -c 1 -W 2 "$SERVER_IP" &>/dev/null; then
+            echo -e "${GREEN}Reachbale${NC}"
+        else
+            echo -e "${RED}Unreachable${NC}"
+            echo -e "${YELLOW}  Check your internet or server firewall${NC}"
+        fi
+        
+        # 4. Test Through Tunnel
+        echo -ne "Testing tunnel (via proxychains)... "
         if command -v proxychains4 &> /dev/null; then
             EXTERNAL_IP=$(timeout 10 proxychains4 -q curl -s -4 ifconfig.me 2>/dev/null)
             if [ -n "$EXTERNAL_IP" ]; then
-                echo -e "${GREEN}✅ PASS - Tunnel working!${NC}"
-                echo -e "${GREEN}   Your IP: ${EXTERNAL_IP}${NC}"
+                echo -e "${GREEN}Success!${NC}"
+                echo -e "  Tunnel IP: ${GREEN}${EXTERNAL_IP}${NC}"
+                if [[ "$EXTERNAL_IP" == "$SERVER_IP" ]]; then
+                     echo -e "  ${GREEN}✓ Traffic is routed correctly${NC}"
+                else
+                     echo -e "  ${YELLOW}⚠ Traffic might not be going through tunnel${NC}"
+                fi
             else
-                echo -e "${RED}❌ FAIL - Could not connect${NC}"
+                echo -e "${RED}Failed${NC}"
+                echo -e "${YELLOW}  Tunnel is up but traffic is blocked${NC}"
             fi
         else
-            echo -e "${YELLOW}⚠️  SKIP - Proxychains not available${NC}"
+             echo -e "${YELLOW}Skipped (proxychains not found)${NC}"
         fi
     else
-        echo -e "${YELLOW}[4/4] Server listening on UDP 443${NC}"
-        echo -e "${GREEN}✅ Server configured${NC}"
+        echo -e "${YELLOW}Server Mode: Tunnel test skipped (Client only feature)${NC}"
     fi
     
     echo ""
@@ -954,7 +999,6 @@ update_paqet() {
     mv /tmp/paqet /usr/local/bin/paqet
     rm -f /tmp/paqet_new.tar.gz
     systemctl start paqet
-    
     sleep 2
     
     if systemctl is-active --quiet paqet; then
@@ -969,6 +1013,138 @@ update_paqet() {
     echo ""
     echo -ne "${YELLOW}Press Enter to continue...${NC}"
     read
+}
+
+# Edit Configuration Menu
+edit_config() {
+    # Detect config file
+    if [ -f "/etc/paqet/server.yaml" ]; then
+        CONFIG_FILE="/etc/paqet/server.yaml"
+    elif [ -f "/etc/paqet/client.yaml" ]; then
+        CONFIG_FILE="/etc/paqet/client.yaml"
+    elif [ -f "/etc/paqet/config.yaml" ]; then
+        CONFIG_FILE="/etc/paqet/config.yaml"
+    else
+        echo -e "${RED}Config file not found!${NC}"
+        read -r
+        return
+    fi
+
+    while true; do
+        show_header
+        echo -e "${CYAN}━━━ Edit Configuration ━━━${NC}"
+        echo -e "${YELLOW}File: $CONFIG_FILE${NC}"
+        echo ""
+        
+        # Read current values
+        CUR_MTU=$(grep "mtu:" "$CONFIG_FILE" | awk '{print $2}')
+        CUR_CONN=$(grep "conn:" "$CONFIG_FILE" | awk '{print $2}')
+        CUR_PARITY=$(grep "parityshard:" "$CONFIG_FILE" | awk '{print $2}')
+        CUR_MODE=$(grep "mode:" "$CONFIG_FILE" | awk '{print $2}' | tr -d '"')
+        
+        echo -e "  ${GREEN}1${NC}) Change MTU         (Current: ${CYAN}$CUR_MTU${NC})"
+        echo -e "  ${GREEN}2${NC}) Change Connections (Current: ${CYAN}$CUR_CONN${NC})"
+        echo -e "  ${GREEN}3${NC}) Change Parity      (Current: ${CYAN}$CUR_PARITY${NC})"
+        echo -e "  ${GREEN}4${NC}) Change Mode        (Current: ${CYAN}$CUR_MODE${NC})"
+        echo ""
+        echo -e "  ${RED}0${NC}) Back & Restart Service"
+        echo ""
+        echo -ne "${YELLOW}Select option: ${NC}"
+        read -r choice
+        
+        case $choice in
+            1)
+                echo -ne "Enter new MTU (e.g. 1200-1400): "
+                read -r new_val
+                if [[ "$new_val" =~ ^[0-9]+$ ]]; then
+                    sed -i "s/mtu: .*/mtu: $new_val/" "$CONFIG_FILE"
+                    echo -e "${GREEN}✓ Updated MTU${NC}"
+                fi
+                ;;
+            2)
+                echo -ne "Enter new Connections (e.g. 10-50): "
+                read -r new_val
+                if [[ "$new_val" =~ ^[0-9]+$ ]]; then
+                    sed -i "s/conn: .*/conn: $new_val/" "$CONFIG_FILE"
+                    echo -e "${GREEN}✓ Updated Connections${NC}"
+                fi
+                ;;
+            3)
+                echo -ne "Enter new Parity Shards (e.g. 3, 5, 10): "
+                read -r new_val
+                if [[ "$new_val" =~ ^[0-9]+$ ]]; then
+                    sed -i "s/parityshard: .*/parityshard: $new_val/" "$CONFIG_FILE"
+                    echo -e "${GREEN}✓ Updated Parity${NC}"
+                fi
+                ;;
+            4)
+                echo -ne "Enter new Mode (fast3, normal, manual): "
+                read -r new_val
+                if [[ -n "$new_val" ]]; then
+                    sed -i "s/mode: .*/mode: \"$new_val\"/" "$CONFIG_FILE"
+                    echo -e "${GREEN}✓ Updated Mode${NC}"
+                fi
+                ;;
+            0)
+                echo -e "${YELLOW}Restarting service to apply changes...${NC}"
+                systemctl restart paqet
+                echo -e "${GREEN}✓ Done!${NC}"
+                sleep 1
+                return
+                ;;
+            *)
+                echo -e "${RED}Invalid option${NC}"
+                sleep 0.5
+                ;;
+        esac
+    done
+}
+
+# Iran Network Optimizations
+run_iran_optimizations() {
+    echo ""
+    echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}          Iran Server Network Optimization                  ${NC}"
+    echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${CYAN}These scripts can help optimize your Iran server:${NC}"
+    echo -e "  ${YELLOW}1.${NC} DNS Finder - Find the best DNS servers for Iran"
+    echo -e "  ${YELLOW}2.${NC} Mirror Selector - Find the fastest apt repository mirror"
+    echo ""
+    echo -e "${CYAN}This can significantly improve download speeds and reliability.${NC}"
+    echo ""
+    
+    echo -ne "${YELLOW}Run network optimization scripts? (y/N): ${NC}"
+    read -r run_opt
+    
+    if [[ "$run_opt" =~ ^[Yy]$ ]]; then
+        echo ""
+        
+        # DNS Optimization
+        echo -e "${YELLOW}Running DNS Finder...${NC}"
+        if bash <(curl -Ls https://github.com/alinezamifar/IranDNSFinder/raw/refs/heads/main/dns.sh); then
+            echo -e "${GREEN}✓ DNS optimization completed${NC}"
+        else
+            echo -e "${RED}✗ DNS optimization failed or skipped${NC}"
+        fi
+        echo ""
+        
+        # Mirror Optimization (Ubuntu/Debian only)
+        if [ -f /etc/debian_version ]; then
+            echo -e "${YELLOW}Running Mirror Selector...${NC}"
+            if bash <(curl -Ls https://github.com/alinezamifar/DetectUbuntuMirror/raw/refs/heads/main/DUM.sh); then
+                echo -e "${GREEN}✓ Mirror optimization completed${NC}"
+            else
+                echo -e "${RED}✗ Mirror optimization failed or skipped${NC}"
+            fi
+        fi
+        
+        echo ""
+        echo -e "${GREEN}Network optimization finished!${NC}"
+        echo ""
+    else
+        echo "Skipping network optimization..."
+    fi
 }
 
 #####################################################
@@ -999,13 +1175,14 @@ management_menu() {
         echo -e "${CYAN}━━━ Monitoring ━━━${NC}"
         echo -e "  ${GREEN}3${NC}) Health Check"
         echo -e "  ${GREEN}4${NC}) Performance Stats"
-        echo -e "  ${GREEN}5${NC}) Test Tunnel"
+        echo -e "  ${GREEN}5${NC}) Edit Configuration"
+        echo -e "  ${GREEN}6${NC}) Test Tunnel"
         echo ""
         
         echo -e "${CYAN}━━━ Maintenance ━━━${NC}"
-        echo -e "  ${GREEN}6${NC}) Backup Configuration"
-        echo -e "  ${GREEN}7${NC}) Update Paqet"
-        echo -e "  ${RED}8${NC}) Uninstall Paqet"
+        echo -e "  ${GREEN}7${NC}) Backup Configuration"
+        echo -e "  ${GREEN}8${NC}) Update Paqet"
+        echo -e "  ${RED}9${NC}) Uninstall Paqet"
         echo ""
         
         echo -e "  ${RED}0${NC}) Exit"
@@ -1018,10 +1195,11 @@ management_menu() {
             2) view_logs ;;
             3) health_check ;;
             4) performance_stats ;;
-            5) test_tunnel ;;
-            6) backup_config ;;
-            7) update_paqet ;;
-            8) uninstall_paqet ;;
+            5) edit_config ;;
+            6) test_tunnel ;;
+            7) backup_config ;;
+            8) update_paqet ;;
+            9) uninstall_paqet ;;
             0)
                 echo -e "${GREEN}Goodbye!${NC}"
                 exit 0
