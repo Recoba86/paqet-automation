@@ -323,11 +323,14 @@ EOF
     echo -e "${GREEN}✓ Optimizations applied${NC}"
     
     # Generate secret and get IP
+    EXISTING_KEY=""
     if [ -f "/etc/paqet/config.yaml" ]; then
-        EXISTING_KEY=$(grep 'key:' /etc/paqet/config.yaml | awk '{print $2}' | tr -d '"')
+        # Robust extraction: find 'key:', strip quotes/spaces
+        EXISTING_KEY=$(grep 'key:' /etc/paqet/config.yaml 2>/dev/null | head -n1 | awk -F': ' '{print $2}' | tr -d '"' | tr -d '[:space:]')
     fi
     
-    if [ -n "$EXISTING_KEY" ]; then
+    # Validation: Key must be reasonably long (base64 16 bytes is ~24 chars)
+    if [ -n "$EXISTING_KEY" ] && [ "${#EXISTING_KEY}" -gt 10 ]; then
         SECRET_KEY="$EXISTING_KEY"
         echo -e "${GREEN}✓ Using existing key: $SECRET_KEY${NC}"
     else
