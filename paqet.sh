@@ -101,7 +101,7 @@ install_server() {
     # Install dependencies
     echo -e "${YELLOW}[1/9] Installing required tools...${NC}"
     apt-get update -qq
-    apt-get install -y curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev bc &>/dev/null
+    apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev bc &>/dev/null
     echo -e "${GREEN}✓ Tools installed${NC}"
     
     # Fetch latest release
@@ -317,7 +317,7 @@ install_client() {
     # Install dependencies
     echo -e "${YELLOW}[1/10] Installing required tools...${NC}"
     apt-get update -qq
-    apt-get install -y curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev git build-essential bc &>/dev/null
+    apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev git build-essential bc &>/dev/null
     echo -e "${GREEN}✓ Tools installed${NC}"
     
     # Fetch latest release
