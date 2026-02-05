@@ -436,28 +436,11 @@ install_client() {
     chmod +x /usr/local/bin/paqet
     echo -e "${GREEN}✓ Downloaded and installed${NC}"
     
-    wget -q --show-progress "$DOWNLOAD_URL" -O /tmp/paqet.tar.gz
-    echo -e "${GREEN}✓ Downloaded${NC}"
-    
-    # Install binary
-    echo -e "${YELLOW}[5/10] Installing paqet binary...${NC}"
-    tar -xzf /tmp/paqet.tar.gz -C /tmp/
-    
-    # Find the binary (it might be named paqet_linux_amd64, etc.)
-    EXTRACTED_BINARY=$(find /tmp -maxdepth 1 -type f -name "paqet_*" | head -n 1)
-    if [ -z "$EXTRACTED_BINARY" ]; then
-        # Fallback check for just 'paqet'
-        if [ -f "/tmp/paqet" ]; then
-            EXTRACTED_BINARY="/tmp/paqet"
-        else
-            echo -e "${RED}Failed to find extracted binary${NC}"
-            exit 1
-        fi
+    # Binary already installed to /usr/local/bin/paqet in previous step
+    if [ ! -f "/usr/local/bin/paqet" ]; then
+         echo -e "${RED}Binary installation failed!${NC}"
+         exit 1
     fi
-    
-    chmod +x "$EXTRACTED_BINARY"
-    mv "$EXTRACTED_BINARY" /usr/local/bin/paqet
-    rm -f /tmp/paqet.tar.gz
     
     # Fix libpcap
     echo -e "${YELLOW}[6/10] Fixing libpcap dependency...${NC}"
