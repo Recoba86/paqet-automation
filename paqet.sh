@@ -461,7 +461,7 @@ EOF
     LOCAL_IP=$(ip -4 addr show "$DEFAULT_IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
     mkdir -p /etc/paqet
     
-    cat > /etc/paqet/config.yaml <<EOF
+    cat > /etc/paqet/config.yaml <<-EOF
 role: "client"
 
 log:
@@ -520,7 +520,7 @@ EOF
         cd - &>/dev/null
     fi
     
-    cat > /etc/proxychains4.conf <<EOF
+    cat > /etc/proxychains4.conf <<-EOF
 strict_chain
 proxy_dns
 remote_dns_subnet 224
@@ -538,7 +538,7 @@ EOF
     
     # Create systemd service
     echo -e "${YELLOW}[10/10] Creating systemd service...${NC}"
-    cat > /etc/systemd/system/paqet.service <<EOF
+    cat > /etc/systemd/system/paqet.service <<-EOF
 [Unit]
 Description=Paqet Tunnel Client
 After=network.target
