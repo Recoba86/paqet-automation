@@ -500,6 +500,9 @@ tcp_connect_time_out 8000
 socks5 127.0.0.1 1080
 EOF
     
+    # Ensure proxychains finds the config
+    ln -sf /etc/proxychains4.conf /etc/proxychains.conf
+    
     echo -e "${GREEN}✓ Proxychains4 installed${NC}"
     
     # Create systemd service
