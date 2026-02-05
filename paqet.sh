@@ -1005,6 +1005,7 @@ management_menu() {
         echo -e "${CYAN}━━━ Maintenance ━━━${NC}"
         echo -e "  ${GREEN}6${NC}) Backup Configuration"
         echo -e "  ${GREEN}7${NC}) Update Paqet"
+        echo -e "  ${RED}8${NC}) Uninstall Paqet"
         echo ""
         
         echo -e "  ${RED}0${NC}) Exit"
@@ -1020,6 +1021,7 @@ management_menu() {
             5) test_tunnel ;;
             6) backup_config ;;
             7) update_paqet ;;
+            8) uninstall_paqet ;;
             0)
                 echo -e "${GREEN}Goodbye!${NC}"
                 exit 0
@@ -1030,6 +1032,51 @@ management_menu() {
                 ;;
         esac
     done
+}
+
+# Uninstall paqet
+uninstall_paqet() {
+    show_header
+    echo -e "${RED}━━━ DANGER: Uninstall Paqet ━━━${NC}"
+    echo ""
+    echo -e "${RED}This will PERMANENTLY remove:${NC}"
+    echo -e "  - Paqet binary and service"
+    echo -e "  - Configuration files (/etc/paqet)"
+    echo -e "  - System optimizations (sysctl)"
+    echo ""
+    echo -ne "${YELLOW}Are you sure you want to uninstall Paqet? (y/N): ${NC}"
+    read -r confirm
+    
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        echo "Uninstall cancelled"
+        sleep 1
+        return
+    fi
+    
+    echo ""
+    echo -e "${YELLOW}Stopping service...${NC}"
+    systemctl stop paqet
+    systemctl disable paqet &>/dev/null
+    rm -f /etc/systemd/system/paqet.service
+    systemctl daemon-reload
+    
+    echo -e "${YELLOW}Removing files...${NC}"
+    rm -f /usr/local/bin/paqet
+    rm -rf /etc/paqet
+    rm -f /etc/proxychains.conf
+    
+    echo -e "${YELLOW}Reverting system optimizations...${NC}"
+    # Remove the block we added to sysctl.conf
+    if [ -f "/etc/sysctl.conf" ]; then
+        sed -i '/# Paqet Tunnel Optimizations/,/net.core.wmem_max=67108864/d' /etc/sysctl.conf
+        # Reload defaults (partial)
+        sysctl -p &>/dev/null || true
+    fi
+    
+    echo -e "${GREEN}✓ Uninstalled successfully${NC}"
+    echo ""
+    echo -e "The script will now exit."
+    exit 0
 }
 
 #####################################################
