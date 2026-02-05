@@ -134,17 +134,30 @@ install_server() {
     esac
     echo -e "${GREEN}✓ Architecture: ${ARCH_NAME}${NC}"
     
-    # Download binary
+    # Download binary (Strict Matching)
     echo -e "${YELLOW}[4/9] Downloading paqet binary...${NC}"
-    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name | contains(\"linux\") and contains(\"${ARCH_NAME}\")) | .browser_download_url" | head -n 1)
+    # Target filename: paqet_linux_amd64 or paqet_linux_arm64
+    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name == \"paqet_linux_${ARCH_NAME}\") | .browser_download_url" | head -n 1)
     
+    # Fallback if exact match fails (e.g. if it has an extension)
+    if [ -z "$DOWNLOAD_URL" ]; then
+         DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name | contains(\"paqet_linux_${ARCH_NAME}\") and (contains(\".sha\") | not)) | .browser_download_url" | head -n 1)
+    fi
+
     if [ -z "$DOWNLOAD_URL" ]; then
         echo -e "${RED}Could not find download URL for linux-${ARCH_NAME}${NC}"
         exit 1
     fi
     
-    wget -q --show-progress "$DOWNLOAD_URL" -O /tmp/paqet.tar.gz
-    echo -e "${GREEN}✓ Downloaded${NC}"
+    # Download directly to binary location (it's not a tarball usually for Go binaries in this repo context, assuming based on name)
+    # BUT current code treats it as tar.gz. Let's check if the previous code was essentially correct about it being a binary.
+    # If the asset name is "paqet_linux_amd64", it is NOT a tar.gz.
+    wget -q --show-progress "$DOWNLOAD_URL" -O /usr/local/bin/paqet
+    chmod +x /usr/local/bin/paqet
+    echo -e "${GREEN}✓ Downloaded and installed${NC}"
+    
+    # Skip extraction logic since we downloaded binary directly
+    # (Removing the tar -xzf block in the next replacement chunk)
     
     # Install binary
     echo -e "${YELLOW}[5/9] Installing paqet binary...${NC}"
@@ -403,14 +416,25 @@ install_client() {
     esac
     echo -e "${GREEN}✓ Architecture: ${ARCH_NAME}${NC}"
     
-    # Download binary
+    # Download binary (Strict Matching)
     echo -e "${YELLOW}[4/10] Downloading paqet binary...${NC}"
-    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name | contains(\"linux\") and contains(\"${ARCH_NAME}\")) | .browser_download_url" | head -n 1)
+    # Target filename: paqet_linux_amd64 or paqet_linux_arm64
+    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name == \"paqet_linux_${ARCH_NAME}\") | .browser_download_url" | head -n 1)
+    
+    # Fallback if exact match fails
+    if [ -z "$DOWNLOAD_URL" ]; then
+         DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name | contains(\"paqet_linux_${ARCH_NAME}\") and (contains(\".sha\") | not)) | .browser_download_url" | head -n 1)
+    fi
     
     if [ -z "$DOWNLOAD_URL" ]; then
         echo -e "${RED}Could not find download URL for linux-${ARCH_NAME}${NC}"
         exit 1
     fi
+    
+    # Download directly to binary location
+    wget -q --show-progress "$DOWNLOAD_URL" -O /usr/local/bin/paqet
+    chmod +x /usr/local/bin/paqet
+    echo -e "${GREEN}✓ Downloaded and installed${NC}"
     
     wget -q --show-progress "$DOWNLOAD_URL" -O /tmp/paqet.tar.gz
     echo -e "${GREEN}✓ Downloaded${NC}"
