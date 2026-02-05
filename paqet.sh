@@ -221,7 +221,7 @@ EOF
     
     cat > /etc/paqet/config.yaml <<EOF
 mode: server
-listen: :443
+listen: ":443"
 secret: ${SECRET_KEY}
 iface: ${DEFAULT_IFACE}
 gateway_mac: ${ROUTER_MAC}
@@ -443,7 +443,7 @@ EOF
     
     cat > /etc/paqet/config.yaml <<EOF
 mode: client
-server: ${SERVER_IP}:443
+server: "${SERVER_IP}:443"
 secret: ${SECRET_KEY}
 iface: ${DEFAULT_IFACE}
 gateway_mac: ${ROUTER_MAC}
