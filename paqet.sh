@@ -510,7 +510,7 @@ Documentation=https://github.com/hanselime/paqet
 Type=simple
 User=root
 WorkingDirectory=/etc/paqet
-ExecStart=/usr/local/bin/paqet -config /etc/paqet/config.json
+ExecStart=/usr/local/bin/paqet run -c /etc/paqet/config.json
 
 # Logging
 StandardOutput=journal
