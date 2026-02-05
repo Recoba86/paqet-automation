@@ -503,9 +503,15 @@ EOF
     # Install proxychains
     echo -e "${YELLOW}[9/10] Installing and configuring proxychains4...${NC}"
     
-    if [ ! -d "/tmp/proxychains-ng" ]; then
-        git clone https://github.com/rofl0r/proxychains-ng.git /tmp/proxychains-ng &>/dev/null
-    fi
+    # Try apt install first (much faster)
+    if apt-get install -y proxychains4 &>/dev/null || apt-get install -y proxychains-ng &>/dev/null; then
+        echo -e "${GREEN}✓ Installed via apt${NC}"
+    # Fallback to compilation
+    else
+        echo -e "${YELLOW}  Compiling from source (package not found)...${NC}"
+        if [ ! -d "/tmp/proxychains-ng" ]; then
+            git clone --depth 1 https://github.com/rofl0r/proxychains-ng.git /tmp/proxychains-ng &>/dev/null
+        fi
     
     cd /tmp/proxychains-ng
     ./configure --prefix=/usr --sysconfdir=/etc &>/dev/null
