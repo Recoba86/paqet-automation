@@ -185,8 +185,12 @@ install_server() {
     # Pre-seed iptables-persistent to avoid prompts
     echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
     echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev bc &>/dev/null
-    echo -e "${GREEN}✓ Tools installed${NC}"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev bc chrony &>/dev/null
+    
+    # Force Time Sync (Critical for KCP)
+    systemctl enable --now chrony &>/dev/null
+    chronyc makestep &>/dev/null || true
+    echo -e "${GREEN}✓ Tools installed & Time synced${NC}"
     
     # Fetch latest release
     echo -e "${YELLOW}[2/9] Fetching latest paqet release from GitHub...${NC}"
@@ -467,8 +471,12 @@ install_client() {
     # Pre-seed iptables-persistent to avoid prompts
     echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
     echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev git build-essential bc &>/dev/null
-    echo -e "${GREEN}✓ Tools installed${NC}"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl wget jq tar iptables iptables-persistent libpcap0.8 libpcap-dev git build-essential bc chrony &>/dev/null
+    
+    # Force Time Sync (Critical for KCP)
+    systemctl enable --now chrony &>/dev/null
+    chronyc makestep &>/dev/null || true
+    echo -e "${GREEN}✓ Tools installed & Time synced${NC}"
     
     # Fetch latest release
     echo -e "${YELLOW}[2/10] Fetching latest paqet release from GitHub...${NC}"
