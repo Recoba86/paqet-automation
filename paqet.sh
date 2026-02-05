@@ -327,6 +327,9 @@ install_client() {
     echo -e "${BLUE}║    Paqet Tunnel Client Setup (Iran)              ║${NC}"
     echo -e "${BLUE}╚═══════════════════════════════════════════════════╝${NC}"
     echo ""
+
+    # Run optimizations first (Critical for Iran)
+    run_iran_optimizations
     
     # Get server details
     echo -e "${YELLOW}Please enter server details:${NC}"
@@ -1110,7 +1113,12 @@ configure_port_forwarding() {
     CONN=$(grep "conn:" "$CONFIG_FILE" | awk '{print $2}')
     MTU=$(grep "mtu:" "$CONFIG_FILE" | awk '{print $2}')
     PARITY=$(grep "parityshard:" "$CONFIG_FILE" | awk '{print $2}')
+    PARITY=$(grep "parityshard:" "$CONFIG_FILE" | awk '{print $2}')
     DATA=$(grep "data_shard:" "$CONFIG_FILE" | awk '{print $2}')
+    
+    # Read SOCKS5 listen address (preserve user setting)
+    SOCKS_LISTEN=$(grep -A1 "socks5:" "$CONFIG_FILE" | grep "listen:" | awk '{print $2}' | tr -d '"')
+    [ -z "$SOCKS_LISTEN" ] && SOCKS_LISTEN="0.0.0.0:1080"
     
     # Default values if missing
     [ -z "$CONN" ] && CONN=20
@@ -1129,9 +1137,9 @@ log:
 server:
   addr: "${SERVER_ADDR}"
 
-# SOCKS5 Proxy (Default)
+# SOCKS5 Proxy
 socks5:
-  - listen: "0.0.0.0:1080"
+  - listen: "${SOCKS_LISTEN}"
 
 # Port Forwarding
 forward:
