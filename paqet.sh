@@ -481,9 +481,19 @@ transport:
   conn: 16
   kcp:
     mode: "fast3"
-    mtu: 1400
-    rcvwnd: 8192
-    sndwnd: 8192
+    mtu: 1350
+    rcvwnd: 16384
+    sndwnd: 16384
+    datashard: 20
+    parityshard: 3
+    dscp: 46
+    nocongestion: 1
+    acknodelay: true
+    nodelay: 1
+    interval: 10
+    resend: 3
+    nc: 1
+    wdelay: true
     key: "${SECRET_KEY}"
 
 socks5:
