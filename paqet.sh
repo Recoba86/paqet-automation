@@ -323,7 +323,17 @@ EOF
     echo -e "${GREEN}✓ Optimizations applied${NC}"
     
     # Generate secret and get IP
-    SECURE_KEY=$(openssl rand -base64 16)
+    if [ -f "/etc/paqet/config.yaml" ]; then
+        EXISTING_KEY=$(grep 'key:' /etc/paqet/config.yaml | awk '{print $2}' | tr -d '"')
+    fi
+    
+    if [ -n "$EXISTING_KEY" ]; then
+        SECURE_KEY="$EXISTING_KEY"
+        echo -e "${GREEN}✓ Using existing key: $SECURE_KEY${NC}"
+    else
+        SECURE_KEY=$(openssl rand -base64 16)
+        echo -e "${GREEN}✓ Generated new key: $SECURE_KEY${NC}"
+    fi
     SERVER_IP=$(curl -s -4 ifconfig.me || curl -s -4 icanhazip.com)
     LOCAL_IP=$(ip -4 addr show "$DEFAULT_IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
 
