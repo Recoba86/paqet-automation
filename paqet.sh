@@ -1175,21 +1175,25 @@ configure_port_forwarding() {
          LOCAL_IP=$(ip -4 addr show "$IFACE" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
     fi
     
-    # 3. Router MAC
-    ROUTER_MAC=$(grep "router_mac:" "$CONFIG_FILE" | head -n 1 | awk '{print $2}' | tr -d '"')
-    if [ -z "$ROUTER_MAC" ]; then
-         GATEWAY=$(ip route | grep default | awk '{print $3}' | head -n 1)
-         ROUTER_MAC=$(ip neighbor show "$GATEWAY" | awk '{print $5}' | head -n 1)
-         [ -z "$ROUTER_MAC" ] && ROUTER_MAC="00:00:00:00:00:00"
+    # 4. SOCKS Listen
+    # Extract value strictly to avoid capturing keys like "listen:"
+    # We look for IP:Port pattern (0.0.0.0:1080)
+    SOCKS_LISTEN=$(grep -A5 "socks5:" "$CONFIG_FILE" | grep "listen:" |  grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+' | head -n 1)
+    # If empty or invalid, reset to default
+    if [ -z "$SOCKS_LISTEN" ]; then
+        SOCKS_LISTEN="0.0.0.0:1080"
     fi
     
-    # 4. SOCKS Listen
-    # Extract value inside quotes: listen: "0.0.0.0:1080"
-    # Logic: Find line with socks5, look for listen in next few lines.
-    SOCKS_LISTEN=$(grep -A5 "socks5:" "$CONFIG_FILE" | grep "listen:" | head -n 1 | awk -F'"' '{print $2}')
-    # If empty or obviously wrong (contains keys), reset to default
-    if [ -z "$SOCKS_LISTEN" ] || [[ "$SOCKS_LISTEN" == *"listen"* ]]; then
-        SOCKS_LISTEN="0.0.0.0:1080"
+    # 3. Router MAC (Hardened)
+    ROUTER_MAC=$(grep "router_mac:" "$CONFIG_FILE" | head -n 1 | awk '{print $2}' | tr -d '"')
+    # Check if empty OR invalid length (MAC should be 17 chars)
+    if [ -z "$ROUTER_MAC" ] || [ "${#ROUTER_MAC}" -lt 10 ]; then
+         GATEWAY=$(ip route | grep default | awk '{print $3}' | head -n 1)
+         ROUTER_MAC=$(ip neighbor show "$GATEWAY" | awk '{print $5}' | head -n 1)
+         # If still bad, force dummy MAC
+         if [ -z "$ROUTER_MAC" ] || [ "${#ROUTER_MAC}" -lt 10 ]; then
+             ROUTER_MAC="00:00:00:00:00:00"
+         fi
     fi
     
     # Default values if missing
