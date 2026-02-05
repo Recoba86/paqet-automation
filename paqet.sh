@@ -415,14 +415,12 @@ EOF
     # Set globals for write_paqet_config
     export ROLE="server"
     export SERVER_ADDR=":443" # For server, this is the bind address
-    export KEY="$SECRET_KEY"  # Fixed variable name from SECURE_KEY to KEY in export if needed, ensuring match with write_paqet_config which uses $KEY
-    # Wait, earlier I renamed SECRET_KEY to SECURE_KEY in line 327 of replacement? Or did I?
-    # Checking context: line 327 says SECURE_KEY=$(openssl...)
-    # But write_paqet_config uses $KEY.
-    # So I must export KEY="$SECURE_KEY"
-    
+    export KEY="$SECRET_KEY"
     export IFACE="$DEFAULT_IFACE"
-    export LOCAL_IP="$LOCAL_IP":0
+    
+    # Server needs to announce its actual listening port in ipv4.addr (Critical Fix)
+    # Reference repo uses ${local_ip}:${PAQET_PORT}
+    export LOCAL_IP="$LOCAL_IP":443
     export ROUTER_MAC="$ROUTER_MAC"
     
     # Empty client-specific vars to be safe
