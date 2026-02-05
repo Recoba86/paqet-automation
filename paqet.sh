@@ -207,43 +207,32 @@ install_server() {
     
     # Download binary (Strict Matching)
     echo -e "${YELLOW}[4/9] Downloading paqet binary...${NC}"
-    # Target filename: paqet_linux_amd64 or paqet_linux_arm64
-    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name == \"paqet_linux_${ARCH_NAME}\") | .browser_download_url" | head -n 1)
+    # Target filename pattern: paqet-linux-amd64-v1.0.0-alpha.14.tar.gz
+    # We match "paqet-linux-${ARCH_NAME}-" to be safe.
+    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name | contains(\"paqet-linux-${ARCH_NAME}-\") and .name | endswith(\".tar.gz\")) | .browser_download_url" | head -n 1)
     
-    # Fallback if exact match fails (e.g. if it has an extension)
-    if [ -z "$DOWNLOAD_URL" ]; then
-         DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name | contains(\"paqet_linux_${ARCH_NAME}\") and (contains(\".sha\") | not)) | .browser_download_url" | head -n 1)
-    fi
-
     if [ -z "$DOWNLOAD_URL" ]; then
         echo -e "${RED}Could not find download URL for linux-${ARCH_NAME}${NC}"
+        echo -e "Debug Info: Available assets:"
+        echo "$RELEASE_INFO" | jq -r '.assets[].name'
         exit 1
     fi
     
-    # Download directly to binary location (it's not a tarball usually for Go binaries in this repo context, assuming based on name)
-    # BUT current code treats it as tar.gz. Let's check if the previous code was essentially correct about it being a binary.
-    # If the asset name is "paqet_linux_amd64", it is NOT a tar.gz.
-    wget -q --show-progress "$DOWNLOAD_URL" -O /usr/local/bin/paqet
-    chmod +x /usr/local/bin/paqet
-    echo -e "${GREEN}✓ Downloaded and installed${NC}"
+    # Download tarball
+    wget -q --show-progress "$DOWNLOAD_URL" -O /tmp/paqet.tar.gz
     
-    # Skip extraction logic since we downloaded binary directly
-    # (Removing the tar -xzf block in the next replacement chunk)
-    
-    # Install binary
-    echo -e "${YELLOW}[5/9] Installing paqet binary...${NC}"
+    # Extract
+    echo -e "${YELLOW}[5/9] Extracting paqet binary...${NC}"
     tar -xzf /tmp/paqet.tar.gz -C /tmp/
     
-    # Find the binary (it might be named paqet_linux_amd64, etc.)
-    EXTRACTED_BINARY=$(find /tmp -maxdepth 1 -type f -name "paqet_*" | head -n 1)
+    # Find the binary (it might be inside a folder or just the binary)
+    # Usually releases extract to a binary named 'paqet' or 'paqet-linux-amd64'
+    # Let's look for executable files containing 'paqet'
+    EXTRACTED_BINARY=$(find /tmp -maxdepth 2 -type f -name "paqet*" ! -name "*.tar.gz" | head -n 1)
+    
     if [ -z "$EXTRACTED_BINARY" ]; then
-        # Fallback check for just 'paqet'
-        if [ -f "/tmp/paqet" ]; then
-            EXTRACTED_BINARY="/tmp/paqet"
-        else
-            echo -e "${RED}Failed to find extracted binary${NC}"
-            exit 1
-        fi
+        echo -e "${RED}Failed to find extracted binary${NC}"
+        exit 1
     fi
     
     chmod +x "$EXTRACTED_BINARY"
@@ -507,29 +496,36 @@ install_client() {
     
     # Download binary (Strict Matching)
     echo -e "${YELLOW}[4/10] Downloading paqet binary...${NC}"
-    # Target filename: paqet_linux_amd64 or paqet_linux_arm64
-    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name == \"paqet_linux_${ARCH_NAME}\") | .browser_download_url" | head -n 1)
-    
-    # Fallback if exact match fails
-    if [ -z "$DOWNLOAD_URL" ]; then
-         DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name | contains(\"paqet_linux_${ARCH_NAME}\") and (contains(\".sha\") | not)) | .browser_download_url" | head -n 1)
-    fi
+    # Target filename pattern: paqet-linux-amd64-v1.0.0-alpha.14.tar.gz
+    # We match "paqet-linux-${ARCH_NAME}-" to be safe.
+    DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name | contains(\"paqet-linux-${ARCH_NAME}-\") and .name | endswith(\".tar.gz\")) | .browser_download_url" | head -n 1)
     
     if [ -z "$DOWNLOAD_URL" ]; then
-        echo -e "${RED}Could not find download URL for linux-${ARCH_NAME}${NC}"
-        exit 1
-    fi
-    
-    # Download directly to binary location
-    wget -q --show-progress "$DOWNLOAD_URL" -O /usr/local/bin/paqet
-    chmod +x /usr/local/bin/paqet
-    echo -e "${GREEN}✓ Downloaded and installed${NC}"
-    
-    # Binary already installed to /usr/local/bin/paqet in previous step
-    if [ ! -f "/usr/local/bin/paqet" ]; then
-         echo -e "${RED}Binary installation failed!${NC}"
+         echo -e "${RED}Could not find download URL for linux-${ARCH_NAME}${NC}"
+         echo -e "Debug Info: Available assets:"
+         echo "$RELEASE_INFO" | jq -r '.assets[].name'
          exit 1
     fi
+    
+    # Download tarball
+    wget -q --show-progress "$DOWNLOAD_URL" -O /tmp/paqet.tar.gz
+    
+    # Extract
+    echo -e "${YELLOW}[5/10] Extracting paqet binary...${NC}"
+    tar -xzf /tmp/paqet.tar.gz -C /tmp/
+    
+    # Find the binary
+    EXTRACTED_BINARY=$(find /tmp -maxdepth 2 -type f -name "paqet*" ! -name "*.tar.gz" | head -n 1)
+    
+    if [ -z "$EXTRACTED_BINARY" ]; then
+        echo -e "${RED}Binary installation failed!${NC}"
+        exit 1
+    fi
+
+    chmod +x "$EXTRACTED_BINARY"
+    mv "$EXTRACTED_BINARY" /usr/local/bin/paqet
+    rm -f /tmp/paqet.tar.gz
+    echo -e "${GREEN}✓ Downloaded and installed${NC}"
     
     # Fix libpcap
     echo -e "${YELLOW}[6/10] Fixing libpcap dependency...${NC}"
